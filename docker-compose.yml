@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_USER: busly
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: busly
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+      - auth-service
+      - fleet-service
+      - routing-service
+      - geo-service
+      - student-service
+      - notification-service
+      - tenant-service
+      - ai-service
+
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+
+  fleet-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    depends_on:
+      - postgres
+      - redis
+
+  routing-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8003:8003"
+    depends_on:
+      - postgres
+      - redis
+
+  geo-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8005:8005"
+    depends_on:
+      - postgres
+      - redis
+
+  student-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    depends_on:
+      - postgres
+      - redis
+
+  notification-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8008:8008"
+    depends_on:
+      - postgres
+      - redis
+
+  tenant-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8006:8006"
+    depends_on:
+      - postgres
+      - redis
+
+  ai-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8009:8009"
+    depends_on:
+      - postgres
+      - redis
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A backend.workers.celery_app worker --loglevel=info
+    depends_on:
+      - rabbitmq
+      - redis
+
+volumes:
+  postgres_data:
