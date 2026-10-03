@@ -83,6 +83,26 @@ EXPO_PUBLIC_API_URL=http://<laptop-LAN-IP>:8000/api/v1 npx expo start
 # scan the QR with Expo Go (same Wi-Fi). Different network? use --tunnel
 ```
 
+<details>
+<summary><b>🔎 How to find your laptop's LAN IP</b></summary>
+
+<br/>
+
+| Your laptop OS | Run this | Look for |
+|---|---|---|
+| 🐧 Linux | `hostname -I` | first address, e.g. `192.168.1.5` |
+| 🍎 macOS | `ipconfig getifaddr en0` | e.g. `192.168.1.5` |
+| 🪟 Windows | `ipconfig` | `IPv4 Address` under Wi-Fi, e.g. `192.168.1.5` |
+
+Use the `192.168.x.x` (or `10.x.x.x`) address — never `127.0.0.1`, that's the
+laptop talking to itself and unreachable from the phone. Example:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.5:8000/api/v1 npx expo start
+```
+
+</details>
+
 ### 🌐 Free public URL (no account, no card)
 
 ```bash
