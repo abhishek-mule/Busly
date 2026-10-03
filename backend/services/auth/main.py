@@ -141,14 +141,21 @@ async def health():
 @app.post("/auth/register", response_model=TokenResponse)
 async def register(data: RegisterRequest, request: Request):
     await _check_rate_limit("register", 5, 300)(request)
-    roles = data.roles or ["driver"]
-    if not set(roles) <= SELF_REGISTER_ROLES:
-        raise HTTPException(status_code=403, detail={"code": "ROLE_NOT_ALLOWED", "message": "Self-registration is limited to driver, parent and teacher accounts"})
+    requested = data.roles or ["driver"]
     try:
         session = session_factory.get_session(data.tenant_id)
     except ValueError:
         raise HTTPException(status_code=404, detail={"code": "TENANT_NOT_FOUND", "message": "Unknown organization"})
     async for s in session:
+        user_count = await s.execute(text("SELECT COUNT(*) FROM users WHERE tenant_id = :tid"), {"tid": data.tenant_id})
+        is_first_user = (user_count.scalar() or 0) == 0
+        if is_first_user:
+            # Fresh organization: the very first account becomes the admin (standard bootstrap).
+            roles = requested if set(requested) <= ALL_ROLES else ["admin"]
+        else:
+            roles = requested
+            if not set(roles) <= SELF_REGISTER_ROLES:
+                raise HTTPException(status_code=403, detail={"code": "ROLE_NOT_ALLOWED", "message": "Self-registration is limited to driver, parent and teacher accounts"})
         existing = await s.execute(text("SELECT id FROM users WHERE email = :email AND tenant_id = :tid"), {"email": data.email, "tid": data.tenant_id})
         if existing.scalar():
             raise HTTPException(status_code=409, detail={"code": "EMAIL_EXISTS", "message": "User already exists"})
