@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   headerBadgeText: { color: colors.white, fontSize: 12, fontWeight: '600' },
-  tripStrip: { paddingHorizontal: 16, paddingTop: 14, maxHeight: 44 },
+  tripStrip: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
   upcomingNote: {
     flexDirection: 'row',
     alignItems: 'center',

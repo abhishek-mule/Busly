@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { colors } from './src/theme';
+import Screen from './src/components/Screen';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
@@ -38,6 +40,36 @@ const icons = {
 
 type Role = 'driver' | 'parent' | 'teacher' | 'admin';
 
+// Every tab screen renders inside the safe area (below notch/status bar).
+// The bottom tab bar adds its own bottom inset from the same provider.
+function withScreen<P extends object>(Wrapped: React.ComponentType<P>) {
+  return function ScreenWrapped(props: P) {
+    return (
+      <Screen>
+        <Wrapped {...props} />
+      </Screen>
+    );
+  };
+}
+
+const SafeHomeScreen = withScreen(HomeScreen);
+const SafeVehicleScreen = withScreen(VehicleScreen);
+const SafeRosterScreen = withScreen(RosterScreen);
+const SafeChildrenScreen = withScreen(ChildrenScreen);
+const SafeProfileScreen = withScreen(ProfileScreen);
+const DriverAttendanceScreen = withScreen((props: any) => (
+  <AttendanceScreen {...props} mode="driver" />
+));
+const TeacherAttendanceScreen = withScreen((props: any) => (
+  <AttendanceScreen {...props} mode="teacher" />
+));
+const ParentTrackingScreen = withScreen((props: any) => (
+  <TrackingScreen {...props} mode="parent" />
+));
+const FleetTrackingScreen = withScreen((props: any) => (
+  <TrackingScreen {...props} mode="all" />
+));
+
 const TABS: Record<Role, { name: string; label: string }[]> = {
   driver: [
     { name: 'Home', label: 'Home' },
@@ -47,6 +79,7 @@ const TABS: Record<Role, { name: string; label: string }[]> = {
   ],
   teacher: [
     { name: 'Roster', label: 'Roster' },
+    { name: 'Tracking', label: 'Tracking' },
     { name: 'Attendance', label: 'Attendance' },
     { name: 'Profile', label: 'Profile' },
   ],
@@ -57,6 +90,7 @@ const TABS: Record<Role, { name: string; label: string }[]> = {
   ],
   admin: [
     { name: 'Home', label: 'Home' },
+    { name: 'Tracking', label: 'Tracking' },
     { name: 'Roster', label: 'Roster' },
     { name: 'Attendance', label: 'Attendance' },
     { name: 'Vehicle', label: 'Vehicle' },
@@ -64,11 +98,13 @@ const TABS: Record<Role, { name: string; label: string }[]> = {
   ],
 };
 
-function attendanceFor(mode: 'driver' | 'teacher') {
-  return function AttendanceRoute(props: any) {
-    return <AttendanceScreen {...props} mode={mode} />;
-  };
-}
+const SCREENS: Record<string, React.ComponentType<any>> = {
+  Home: SafeHomeScreen,
+  Vehicle: SafeVehicleScreen,
+  Roster: SafeRosterScreen,
+  Children: SafeChildrenScreen,
+  Profile: SafeProfileScreen,
+};
 
 function MainTabs({ role }: { role: Role }) {
   const tabs = TABS[role];
@@ -88,31 +124,19 @@ function MainTabs({ role }: { role: Role }) {
           borderTopColor: colors.border,
           height: 62,
           paddingTop: 6,
-          paddingBottom: 8,
+          paddingBottom: 6,
         },
       })}
     >
       {tabs.map(({ name, label }) => {
-        if (name === 'Home')
-          return <Tab.Screen key={name} name="Home" component={HomeScreen} options={{ tabBarLabel: label }} />;
+        let component = SCREENS[name] ?? SafeProfileScreen;
         if (name === 'Attendance')
-          return (
-            <Tab.Screen
-              key={name}
-              name="Attendance"
-              component={attendanceFor(role === 'driver' ? 'driver' : 'teacher')}
-              options={{ tabBarLabel: label }}
-            />
-          );
-        if (name === 'Vehicle')
-          return <Tab.Screen key={name} name="Vehicle" component={VehicleScreen} options={{ tabBarLabel: label }} />;
-        if (name === 'Roster')
-          return <Tab.Screen key={name} name="Roster" component={RosterScreen} options={{ tabBarLabel: label }} />;
+          component = role === 'driver' ? DriverAttendanceScreen : TeacherAttendanceScreen;
         if (name === 'Tracking')
-          return <Tab.Screen key={name} name="Tracking" component={TrackingScreen} options={{ tabBarLabel: label }} />;
-        if (name === 'Children')
-          return <Tab.Screen key={name} name="Children" component={ChildrenScreen} options={{ tabBarLabel: label }} />;
-        return <Tab.Screen key={name} name="Profile" component={ProfileScreen} options={{ tabBarLabel: label }} />;
+          component = role === 'parent' ? ParentTrackingScreen : FleetTrackingScreen;
+        return (
+          <Tab.Screen key={name} name={name} component={component} options={{ tabBarLabel: label }} />
+        );
       })}
     </Tab.Navigator>
   );
@@ -148,8 +172,10 @@ function Root() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Root />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Root />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

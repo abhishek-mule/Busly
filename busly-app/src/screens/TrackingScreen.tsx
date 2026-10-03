@@ -70,7 +70,7 @@ interface Position {
   recorded_at: string;
 }
 
-export default function TrackingScreen() {
+export default function TrackingScreen({ mode = 'parent' }: { mode?: 'parent' | 'all' }) {
   const { user } = useAuth();
   const [children, setChildren] = useState<Student[]>([]);
   const [routes, setRoutes] = useState<Record<string, string>>({});
@@ -98,11 +98,14 @@ export default function TrackingScreen() {
       ]);
       if (!active.current) return;
 
-      const kids = phone
-        ? (studentsRes.items ?? []).filter(
-            (s) => normalizePhone(s.father_phone) === phone || normalizePhone(s.mother_phone) === phone
-          )
-        : [];
+      const kids =
+        mode === 'all'
+          ? (studentsRes.items ?? []).filter((s) => s.route_id)
+          : phone
+            ? (studentsRes.items ?? []).filter(
+                (s) => normalizePhone(s.father_phone) === phone || normalizePhone(s.mother_phone) === phone
+              )
+            : [];
       setChildren(kids);
 
       const routeMap: Record<string, string> = {};
@@ -128,7 +131,7 @@ export default function TrackingScreen() {
         setRefreshing(false);
       }
     }
-  }, [user?.phone]);
+  }, [user?.phone, mode]);
 
   const pollGps = useCallback(async () => {
     try {
@@ -153,7 +156,7 @@ export default function TrackingScreen() {
   }, [load, pollGps]);
 
   useEffect(() => {
-    let cancelled = true;
+    let cancelled = false;
     setStops([]);
     if (!selectedRoute) return;
     (async () => {
@@ -227,20 +230,30 @@ export default function TrackingScreen() {
       <ScreenHeader
         title="Live Tracking"
         subtitle={
-          children.length
-            ? `${children.map((c) => c.first_name).join(', ')}`
-            : 'Real-time bus position'
+          mode === 'all'
+            ? 'All school routes · live'
+            : children.length
+              ? `${children.map((c) => c.first_name).join(', ')}`
+              : 'Real-time bus position'
         }
       />
 
       <ErrorBanner message={error} onRetry={() => load()} />
 
       {children.length === 0 ? (
-        <EmptyState
-          icon={<Inbox size={26} color={colors.primary} strokeWidth={1.8} />}
-          title="No children linked"
-          text="No student record matches your phone number. Ask the school office to add your number to your child's profile."
-        />
+        mode === 'all' ? (
+          <EmptyState
+            icon={<MapPin size={26} color={colors.primary} strokeWidth={1.8} />}
+            title="No routes tracked"
+            text="No students are assigned to routes yet. Assign students to routes to see live buses here."
+          />
+        ) : (
+          <EmptyState
+            icon={<Inbox size={26} color={colors.primary} strokeWidth={1.8} />}
+            title="No children linked"
+            text="No student record matches your phone number. Ask the school office to add your number to your child's profile."
+          />
+        )
       ) : (
         <>
           {childRoutes.length > 1 ? (
@@ -400,7 +413,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { paddingBottom: 28 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
-  chipStrip: { paddingHorizontal: 16, paddingTop: 14, maxHeight: 44 },
+  chipStrip: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4 },
   chip: {
     backgroundColor: colors.card,
     borderWidth: 1,

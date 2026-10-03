@@ -36,8 +36,14 @@ export default function LoginPage() {
         localStorage.removeItem('token');
         setError('Logged in but could not load your profile. Please try again.');
       }
-    } catch {
-      setError('Invalid email or password. Please contact your school administrator.');
+    } catch (err: any) {
+      if (!err?.response) {
+        setError('Cannot reach the server. Check your connection and API address, then try again.');
+      } else if (err.response.status === 429) {
+        setError('Too many login attempts. Wait a minute and try again.');
+      } else {
+        setError('Invalid email or password. Please contact your school administrator.');
+      }
     }
 
     setIsLoading(false);

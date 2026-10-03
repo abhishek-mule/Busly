@@ -1,116 +1,149 @@
-# Busly — School Transport Management System
+<div align="center">
 
-Live GPS school-bus tracking, trip attendance, and fleet management.
-One backend, one admin dashboard, one role-based mobile app. **Zero-cost stack.**
+<img src="docs/busly-logo.png" width="120" alt="Busly logo" />
 
-## What it does
+# 🚌 Busly
 
-| Who | What |
-|---|---|
-| **Driver** (mobile) | Today's trips, start/end trip, live GPS sharing, mark attendance, assigned vehicle |
-| **Parent** (mobile) | Live bus map, linked children, per-day attendance history |
-| **Teacher** (mobile) | Class roster with search, daily roll-call attendance |
-| **Admin** (web dashboard) | Vehicles, drivers, routes, stops, students, attendance, live map, trip reports, alerts feed |
+**Live GPS school-bus tracking, trip attendance & fleet management — at zero cost.**
 
-Auth is role-based (JWT): the same login shows different screens per role.
+[![Stack](https://img.shields.io/badge/stack-Docker_%E2%80%A2_FastAPI_%E2%80%A2_Next.js_14_%E2%80%A2_Expo_57-4F46E5)](https://github.com/abhishek-mule/Busly)
+[![Database](https://img.shields.io/badge/db-PostGIS_%E2%80%A2_Redis_%E2%80%A2_RabbitMQ-0E7490)](https://github.com/abhishek-mule/Busly)
+[![Cost](https://img.shields.io/badge/cost-%240_forver-success)](https://github.com/abhishek-mule/Busly)
+[![License](https://img.shields.io/badge/license-All_rights_reserved-lightgrey)](LICENSE)
 
-## 5-minute demo
+[📖 User Manual (PDF)](docs/busly_manual.pdf) · [🎬 Demo Video](#-demo-video) · [🚀 Quick Start](#-quick-start) · [🎭 Demo Script](#-the-5-minute-demo)
 
-```bash
-docker compose up -d
-python3 scripts/demo-seed.py
-```
+</div>
 
-| Login | Password | Sees |
+---
+
+## 🎬 Demo Video
+
+<video src="https://github.com/abhishek-mule/Busly/releases/download/v1.0-demo/busly_demo.mp4" controls width="640"></video>
+
+> 📥 Also attached to the [**v1.0-demo release**](https://github.com/abhishek-mule/Busly/releases/tag/v1.0-demo). Full written guide: [📖 User Manual (PDF)](docs/busly_manual.pdf).
+
+---
+
+## ✨ What it does
+
+| Who | Where | What they get |
 |---|---|---|
-| `admin@busly.com` | `admin123` | Web dashboard: http://localhost:3001 |
-| `driver@busly.com` | `driver123` | Driver tabs (mobile) |
-| `teacher@busly.com` | `teacher123` | Roster + attendance (mobile) |
-| `parent@busly.com` | `parent123` | Live map + children (mobile) |
+| 🚍 **Driver** | 📱 phone | Today's trips, Start/End trip, live GPS sharing, mark attendance |
+| 👪 **Parent** | 📱 phone | Live bus map with stops + route, linked children, attendance history |
+| 👩‍🏫 **Teacher** | 📱 phone | Class roster with search, daily roll-call, fleet-wide live map |
+| 🛠️ **Admin** | 💻 browser | Dashboard, vehicles, routes, students, live map, alerts, reports |
 
-Walkthrough: driver starts the 07:30 trip and marks attendance → parent opens
-Tracking and watches the bus go Live → teacher sees the roster → admin bell shows
-the geofence alert and the dashboard updates. Re-run `demo-seed.py` any day to
-refresh today's trips and the live position (it only creates what's missing).
+One login per role — the app reshapes itself around who you are.
 
-## Quick start (student laptop)
+---
 
-Prerequisites: Docker + Docker Compose, Node.js 22, Python 3.
+## 🎭 The 5-minute demo
+
+Tell **one story** across four logins:
+
+1. **Driver** starts the morning pickup → the bus goes **Live** 🟢
+2. **Parent** opens Tracking → watches the bus move along the route line 🗺️
+3. **Teacher** takes roll-call from the Roster ✅
+4. **Admin** opens the dashboard → everything that just happened is already there 📊
+
+---
+
+## 🚀 Quick Start
+
+**Prerequisites:** Docker + Compose · Node.js 22 · Python 3 · Expo Go (on your phone)
+
+### 1️⃣ Backend — 12 services, one command
 
 ```bash
 git clone https://github.com/abhishek-mule/Busly.git && cd Busly
 
-# 1. Backend (12 services: gateway :8000, Postgres, Redis, RabbitMQ, workers…)
-sudo ./scripts/gen-keys.sh     # JWT keypair -> /etc/keys (back it up)
-docker compose up -d
-curl localhost:8000/health
+sudo ./scripts/gen-keys.sh          # JWT keypair → /etc/keys (one time only)
+docker compose --profile tunnel up -d
+curl localhost:8000/health          # → {"status":"ok",...}
 
-# 2. Demo data + accounts
-python3 scripts/demo-seed.py
-
-# 3. Admin dashboard
-cd admin && npm install && npm run build && npx next start -p 3001
-# -> http://localhost:3001 (login: admin@busly.com / admin123)
-
-# 4. Mobile app (Expo Go on your phone, same Wi-Fi as the laptop)
-cd busly-app && npm install && npx expo start
-# scan the QR code with Expo Go
+python3 scripts/demo-seed.py        # accounts + bus + route + today's trips + live GPS
 ```
 
-> Host Postgres/Redis running? The compose file maps **5433:5432** and **6380:6379**
-> to avoid clashing with system services. Internal traffic is unaffected.
+`demo-seed.py` is idempotent — re-run it every demo morning to refresh the data.
 
-## Architecture
+### 2️⃣ Admin dashboard
 
-```
-Phone (Expo app) ─┐
-Vercel admin ─────┼──→ gateway :8000 ─→ auth :8001 · fleet :8002 · routing :8003
-                  │                     students :8004 · geo :8005 · tenant :8006
-                  │                     notifications :8008 · celery worker
-                  └──────────────────── postgres+postgis · redis · rabbitmq
+```bash
+cd admin && npm install
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
+# → http://localhost:3000/login
 ```
 
-- **Multi-tenant**: one database per school (`tenant_default`); your `tenant_id`
-  comes from the login token — clients can't read other tenants.
-- **Roles enforced at the gateway**: wrong role → `403`. Internal ports (8001+)
-  are not published; only `:8000` is reachable.
-- **Fresh database?** The first registered account automatically becomes admin.
+### 3️⃣ Phone app
 
-## Deployment (all free)
+```bash
+cd busly-app && npm install
+EXPO_PUBLIC_API_URL=http://<laptop-LAN-IP>:8000/api/v1 npx expo start
+# scan the QR with Expo Go (same Wi-Fi). Different network? use --tunnel
+```
 
-- **Backend**: any Ubuntu VPS (Oracle Always Free works) → `docker compose up -d`,
-  expose via Cloudflare Tunnel for free HTTPS. See `.env.example`.
-- **Admin**: Vercel → import repo, root directory `admin`,
-  `NEXT_PUBLIC_API_URL=https://<your-backend>/api/v1`.
-- **APK**: `cd busly-app && eas login && eas init && eas build -p android --profile preview`
-  with `EXPO_PUBLIC_API_URL` set to the public backend URL (baked in at build time).
-  Note: release map tiles need a Google Maps key (free tier), otherwise the map is blank.
+### 🌐 Free public URL (no account, no card)
 
-## Project structure
+```bash
+docker compose logs cloudflared | grep trycloudflare   # your https://… URL
+```
+
+Point any client at `https://<url>/api/v1`. The URL changes when the tunnel
+container restarts — check the logs after every `up`.
+
+---
+
+## 🔑 Demo accounts
+
+| Login | Password | Role |
+|---|---|---|
+| `admin@busly.com` | `admin123` | 🛠️ Admin |
+| `driver@busly.com` | `driver123` | 🚍 Driver |
+| `teacher@busly.com` | `teacher123` | 👩‍🏫 Teacher |
+| `parent@busly.com` | `parent123` | 👪 Parent |
+
+---
+
+## 🏗️ How it fits together
+
+```
+📱 Expo app ─┐
+💻 Admin ────┼──→ gateway :8000 ─→ auth · fleet · routing · students
+             │                      geo · tenant · notifications · worker
+             └───────────────────── postgres+postgis · redis · rabbitmq
+```
+
+- 🔒 **Roles enforced at the gateway** — wrong role → `403`. Only `:8000` is public.
+- 🏫 **Multi-tenant** — one database per school; your tenant comes from the login token.
+- 🌱 **Fresh database?** The first registered account automatically becomes admin.
 
 ```
 Busly/
-├── backend/services/   # gateway, auth, fleet, routing, students, geo,
-│                       # tenant, notifications (+ libs/shared, workers/)
-├── backend/workers/    # Celery: route optimizer (TSP), report CSVs
-├── admin/              # Next.js 14 dashboard
-├── busly-app/          # Expo SDK 57 unified mobile app
-├── parent-app/         # legacy (superseded by busly-app)
-├── scripts/            # gen-keys.sh, demo-seed.py
-└── docker-compose.yml  # 12 services, restart policies, report volume
+├── backend/      # 8 FastAPI services + gateway + Celery workers
+├── admin/        # Next.js 14 dashboard
+├── busly-app/    # Expo SDK 57 unified mobile app
+├── scripts/      # gen-keys.sh · demo-seed.py
+├── docs/         # logo · user manual (PDF) · demo video
+└── docker-compose.yml
 ```
 
-## Troubleshooting
+---
+
+## 🩺 Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `curl localhost:8000/health` fails | `docker compose up -d`; after reboot containers restart automatically |
-| Login 401 everywhere | `docker compose up -d --build gateway auth-service` (key mismatch) |
-| Admin lists empty | Hard refresh; API returns `{items:[...]}` unwrapped by `useFetch` |
-| Phone can't reach Metro/API | Same Wi-Fi; use `--tunnel`; check laptop firewall |
-| `429` on login | Rate limiter (10/min/IP) — wait 60s |
+| `health` check fails | `docker compose up -d` (containers auto-restart after reboot) |
+| `Cannot reach the server` at login | App points at the wrong API URL — check the env var |
+| `Too many login attempts` | Rate limiter (10/min) — wait 60s |
+| Phone can't load the app | Same Wi-Fi, or `expo start --tunnel`; allow port `8081` |
+| Tunnel URL dead | It rotated — read the new one from `cloudflared` logs |
+| Dark map | Phone is in dark mode — Google Maps follows the system theme |
 
-## Deliberately out of scope (0-cost MVP)
+---
 
-No AI/LLM features, no push/SMS delivery (in-app alerts only), no online fees module,
-no driver background tracking (foreground GPS only). See open issues for the roadmap.
+## 📄 License
+
+© 2026 Abhishek Mule — **All rights reserved** (see [LICENSE](LICENSE)).
+Shared with invited collaborators for academic evaluation only.
