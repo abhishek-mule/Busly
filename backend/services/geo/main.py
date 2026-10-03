@@ -1,4 +1,6 @@
+import os
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from pydantic import BaseModel
 from prometheus_client import make_asgi_app
@@ -20,7 +22,7 @@ active_connections: dict[str, list[WebSocket]] = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis, tenant_registry, session_factory, engine_pool
-    redis = Redis.from_url("redis://localhost:6379", decode_responses=True)
+    redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
     tenant_registry = TenantRegistry(redis)
     engine_pool = TenantEnginePool()
     session_factory = TenantSessionFactory(tenant_registry, engine_pool)
@@ -76,11 +78,11 @@ async def push_position(data: PositionUpdate, tenant_id: str = "default"):
 
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        await s.execute(
-            """INSERT INTO gps_locations (tenant_id, vehicle_id, latitude, longitude, speed, heading, accuracy, recorded_at)
-               VALUES (:tid, :vid, :lat, :lon, :speed, :heading, :acc, :ts)""",
+        db_ts = datetime.fromisoformat(ts)
+        await s.execute(text("""INSERT INTO gps_locations (tenant_id, vehicle_id, latitude, longitude, speed, heading, accuracy, recorded_at)
+               VALUES (:tid, NULLIF(:vid, '')::uuid, :lat, :lon, :speed, :heading, :acc, :ts)"""),
             {"tid": tenant_id, "vid": data.vehicle_id, "lat": data.latitude, "lon": data.longitude,
-             "speed": data.speed, "heading": data.heading, "acc": data.accuracy, "ts": ts}
+             "speed": data.speed, "heading": data.heading, "acc": data.accuracy, "ts": db_ts}
         )
         await s.commit()
 
@@ -93,7 +95,54 @@ async def push_position(data: PositionUpdate, tenant_id: str = "default"):
             dead.append(ws)
     for ws in dead:
         ws_list.remove(ws)
+    try:
+        await _process_geofence_transitions(data.vehicle_id, data.latitude, data.longitude, tenant_id)
+    except Exception:
+        pass
     return {"status": "ok"}
+
+
+async def _process_geofence_transitions(vehicle_id: str, latitude: float, longitude: float, tenant_id: str) -> None:
+    """Persist enter/exit alerts on zone transitions. State-based: no repeat alerts while inside."""
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        result = await s.execute(text("SELECT * FROM geofence_zones WHERE tenant_id = :tid AND is_active = true"),
+            {"tid": tenant_id}
+        )
+        zones = [dict(z._mapping) for z in result.fetchall()]
+        if not zones:
+            return
+        current = set()
+        by_id = {}
+        for z in zones:
+            zid = str(z["id"])
+            by_id[zid] = z
+            coords = json.loads(z["coordinates"]) if isinstance(z["coordinates"], str) else z["coordinates"]
+            if _point_in_polygon(latitude, longitude, coords, z.get("radius_meters") or 100):
+                current.add(zid)
+        raw = await redis.get(f"geostate:{vehicle_id}")
+        previous = set(json.loads(raw)) if raw else set()
+        entered = current - previous
+        exited = previous - current
+        for zid in entered:
+            z = by_id[zid]
+            await s.execute(text("""INSERT INTO alerts (tenant_id, alert_type, title, message, vehicle_id, severity)
+                   VALUES (:tid, 'geofence', :title, :msg, NULLIF(:vid, '')::uuid, 'info')"""),
+                {"tid": tenant_id, "title": f"Entered {z['name']}",
+                 "msg": f"Vehicle arrived at {z['name']} zone.", "vid": vehicle_id}
+            )
+        for zid in exited:
+            z = by_id.get(zid)
+            if not z:
+                continue
+            await s.execute(text("""INSERT INTO alerts (tenant_id, alert_type, title, message, vehicle_id, severity)
+                   VALUES (:tid, 'geofence', :title, :msg, NULLIF(:vid, '')::uuid, 'info')"""),
+                {"tid": tenant_id, "title": f"Exited {z['name']}",
+                 "msg": f"Vehicle left {z['name']} zone.", "vid": vehicle_id}
+            )
+        if entered or exited:
+            await s.commit()
+        await redis.setex(f"geostate:{vehicle_id}", 21600, json.dumps(sorted(current)))
 
 
 @app.get("/geo/vehicle/{vehicle_id}/live")
@@ -141,9 +190,8 @@ async def position_stream(websocket: WebSocket, vehicle_id: str):
 async def create_geofence(data: GeofenceZoneCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            """INSERT INTO geofence_zones (tenant_id, name, zone_type, coordinates, radius_meters)
-               VALUES (:tid, :name, :zt, :coords, :rm) RETURNING id""",
+        result = await s.execute(text("""INSERT INTO geofence_zones (tenant_id, name, zone_type, coordinates, radius_meters)
+               VALUES (:tid, :name, :zt, :coords, :rm) RETURNING id"""),
             {"tid": tenant_id, "name": data.name, "zt": data.zone_type,
              "coords": json.dumps(data.coordinates), "rm": data.radius_meters}
         )
@@ -156,8 +204,7 @@ async def create_geofence(data: GeofenceZoneCreate, tenant_id: str = "default"):
 async def list_geofences(tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            "SELECT * FROM geofence_zones WHERE tenant_id = :tid AND is_active = true",
+        result = await s.execute(text("SELECT * FROM geofence_zones WHERE tenant_id = :tid AND is_active = true"),
             {"tid": tenant_id}
         )
         rows = result.fetchall()
@@ -168,8 +215,7 @@ async def list_geofences(tenant_id: str = "default"):
 async def check_geofence(data: GeofenceCheck, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            "SELECT * FROM geofence_zones WHERE tenant_id = :tid AND is_active = true",
+        result = await s.execute(text("SELECT * FROM geofence_zones WHERE tenant_id = :tid AND is_active = true"),
             {"tid": tenant_id}
         )
         zones = result.fetchall()
@@ -178,7 +224,7 @@ async def check_geofence(data: GeofenceCheck, tenant_id: str = "default"):
         for zone in zones:
             z = dict(zone._mapping)
             coords = json.loads(z["coordinates"]) if isinstance(z["coordinates"], str) else z["coordinates"]
-            if _point_in_polygon(data.latitude, data.longitude, coords):
+            if _point_in_polygon(data.latitude, data.longitude, coords, z.get("radius_meters") or 100):
                 in_zones.append(z["id"])
                 alerts.append({"zone_id": z["id"], "zone_name": z["name"], "type": "geofence_enter"})
         return {"vehicle_id": data.vehicle_id, "in_zones": in_zones, "alerts": alerts}
@@ -188,8 +234,7 @@ async def check_geofence(data: GeofenceCheck, tenant_id: str = "default"):
 async def proximity_alerts(tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            "SELECT * FROM alerts WHERE tenant_id = :tid AND alert_type = 'proximity' AND is_resolved = false ORDER BY created_at DESC LIMIT 20",
+        result = await s.execute(text("SELECT * FROM alerts WHERE tenant_id = :tid AND alert_type = 'proximity' AND is_resolved = false ORDER BY created_at DESC LIMIT 20"),
             {"tid": tenant_id}
         )
         rows = result.fetchall()
@@ -205,9 +250,8 @@ async def gps_location(data: PositionUpdate, tenant_id: str = "default"):
 async def gps_active(tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            """SELECT DISTINCT ON (vehicle_id) vehicle_id, latitude, longitude, speed, heading, recorded_at
-               FROM gps_locations WHERE tenant_id = :tid ORDER BY vehicle_id, recorded_at DESC""",
+        result = await s.execute(text("""SELECT DISTINCT ON (vehicle_id) vehicle_id, latitude, longitude, speed, heading, recorded_at
+               FROM gps_locations WHERE tenant_id = :tid ORDER BY vehicle_id, recorded_at DESC"""),
             {"tid": tenant_id}
         )
         rows = result.fetchall()
@@ -221,8 +265,7 @@ async def gps_vehicle(vehicle_id: str, tenant_id: str = "default"):
         return json.loads(data)
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            "SELECT * FROM gps_locations WHERE vehicle_id = :vid AND tenant_id = :tid ORDER BY recorded_at DESC LIMIT 1",
+        result = await s.execute(text("SELECT * FROM gps_locations WHERE vehicle_id = :vid AND tenant_id = :tid ORDER BY recorded_at DESC LIMIT 1"),
             {"vid": vehicle_id, "tid": tenant_id}
         )
         row = result.fetchone()
@@ -235,20 +278,19 @@ async def gps_vehicle(vehicle_id: str, tenant_id: str = "default"):
 async def gps_vehicle_history(vehicle_id: str, tenant_id: str = "default", hours: int = 24):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            """SELECT * FROM gps_locations WHERE vehicle_id = :vid AND tenant_id = :tid
-               AND recorded_at >= NOW() - INTERVAL ':hours hours' ORDER BY recorded_at ASC""",
+        result = await s.execute(text("""SELECT * FROM gps_locations WHERE vehicle_id = :vid AND tenant_id = :tid
+               AND recorded_at >= NOW() - make_interval(hours => :hours) ORDER BY recorded_at ASC"""),
             {"vid": vehicle_id, "tid": tenant_id, "hours": hours}
         )
         rows = result.fetchall()
         return {"items": [dict(r._mapping) for r in rows], "vehicle_id": vehicle_id}
 
 
-def _point_in_polygon(lat: float, lon: float, polygon: list) -> bool:
+def _point_in_polygon(lat: float, lon: float, polygon: list, radius_meters: float = 100) -> bool:
     if not polygon:
         return False
     if len(polygon) == 2 and isinstance(polygon[0], (int, float)):
-        return _haversine(lat, lon, polygon[0], polygon[1]) <= 100
+        return _haversine(lat, lon, polygon[0], polygon[1]) <= (radius_meters or 100)
     n = len(polygon)
     inside = False
     j = n - 1

@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 import asyncpg
 
 SHARED_DB_URL = os.environ.get("SHARED_DB_URL", "postgresql://busly:password@localhost:5432/busly")
@@ -34,8 +36,10 @@ async def run_tenant_migrations(tenant_id: str) -> None:
     conn = await asyncpg.connect(await _sync_url(db_name))
     try:
         await conn.execute("CREATE SCHEMA IF NOT EXISTS busly")
-        await conn.execute("SET search_path TO busly")
-        with open("services/tenant/schema.sql") as f:
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
+        await conn.execute("CREATE EXTENSION IF NOT EXISTS postgis")
+        schema_path = Path(__file__).with_name("schema.sql")
+        with open(schema_path) as f:
             sql = f.read()
         await conn.execute(sql)
     finally:

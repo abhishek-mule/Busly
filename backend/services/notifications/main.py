@@ -1,4 +1,6 @@
+import os
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_client import make_asgi_app
@@ -15,7 +17,7 @@ engine_pool: TenantEnginePool = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis, tenant_registry, session_factory, engine_pool
-    redis = Redis.from_url("redis://localhost:6379", decode_responses=True)
+    redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
     tenant_registry = TenantRegistry(redis)
     engine_pool = TenantEnginePool()
     session_factory = TenantSessionFactory(tenant_registry, engine_pool)
@@ -60,11 +62,10 @@ async def list_notifications(tenant_id: str = "default", user_id: str = "", page
         if user_id:
             where += " AND user_id = :uid"
             params["uid"] = user_id
-        total = await s.execute(f"SELECT COUNT(*) FROM notifications {where}", params)
+        total = await s.execute(text(f"SELECT COUNT(*) FROM notifications {where}"), params)
         total_count = total.scalar()
         offset = (page - 1) * limit
-        result = await s.execute(
-            f"SELECT * FROM notifications {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset",
+        result = await s.execute(text(f"SELECT * FROM notifications {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"),
             {**params, "limit": limit, "offset": offset}
         )
         rows = result.fetchall()
@@ -75,9 +76,8 @@ async def list_notifications(tenant_id: str = "default", user_id: str = "", page
 async def send_notification(data: NotificationCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            """INSERT INTO notifications (tenant_id, user_id, title, body, channel, notification_type, status, sent_at)
-               VALUES (:tid, :uid, :title, :body, :channel, :ntype, 'sent', NOW()) RETURNING id""",
+        result = await s.execute(text("""INSERT INTO notifications (tenant_id, user_id, title, body, channel, notification_type, status, sent_at)
+               VALUES (:tid, NULLIF(:uid, '')::uuid, :title, :body, :channel, :ntype, 'sent', NOW()) RETURNING id"""),
             {"tid": tenant_id, "uid": data.user_id, "title": data.title, "body": data.body,
              "channel": data.channel, "ntype": data.notification_type}
         )
@@ -98,11 +98,10 @@ async def list_alerts(tenant_id: str = "default", is_read: str = "", severity: s
         if severity:
             where += " AND severity = :severity"
             params["severity"] = severity
-        total = await s.execute(f"SELECT COUNT(*) FROM alerts {where}", params)
+        total = await s.execute(text(f"SELECT COUNT(*) FROM alerts {where}"), params)
         total_count = total.scalar()
         offset = (page - 1) * limit
-        result = await s.execute(
-            f"SELECT * FROM alerts {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset",
+        result = await s.execute(text(f"SELECT * FROM alerts {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"),
             {**params, "limit": limit, "offset": offset}
         )
         rows = result.fetchall()
@@ -113,9 +112,8 @@ async def list_alerts(tenant_id: str = "default", is_read: str = "", severity: s
 async def create_alert(data: AlertCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(
-            """INSERT INTO alerts (tenant_id, alert_type, title, message, vehicle_id, driver_id, student_id, route_id, severity)
-               VALUES (:tid, :at, :title, :msg, :vid, :did, :sid, :rid, :sev) RETURNING id""",
+        result = await s.execute(text("""INSERT INTO alerts (tenant_id, alert_type, title, message, vehicle_id, driver_id, student_id, route_id, severity)
+               VALUES (:tid, :at, :title, :msg, NULLIF(:vid, '')::uuid, NULLIF(:did, '')::uuid, NULLIF(:sid, '')::uuid, NULLIF(:rid, '')::uuid, :sev) RETURNING id"""),
             {"tid": tenant_id, "at": data.alert_type, "title": data.title, "msg": data.message,
              "vid": data.vehicle_id, "did": data.driver_id, "sid": data.student_id,
              "rid": data.route_id, "sev": data.severity}
@@ -129,7 +127,7 @@ async def create_alert(data: AlertCreate, tenant_id: str = "default"):
 async def get_alert(alert_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute("SELECT * FROM alerts WHERE id = :id AND tenant_id = :tid", {"id": alert_id, "tid": tenant_id})
+        result = await s.execute(text("SELECT * FROM alerts WHERE id = :id AND tenant_id = :tid"), {"id": alert_id, "tid": tenant_id})
         row = result.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Alert not found"})
@@ -140,7 +138,7 @@ async def get_alert(alert_id: str, tenant_id: str = "default"):
 async def mark_alert_read(alert_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        await s.execute("UPDATE alerts SET is_read = true WHERE id = :id AND tenant_id = :tid", {"id": alert_id, "tid": tenant_id})
+        await s.execute(text("UPDATE alerts SET is_read = true WHERE id = :id AND tenant_id = :tid"), {"id": alert_id, "tid": tenant_id})
         await s.commit()
         return {"id": alert_id, "status": "read"}
 
@@ -149,8 +147,7 @@ async def mark_alert_read(alert_id: str, tenant_id: str = "default"):
 async def resolve_alert(alert_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        await s.execute(
-            "UPDATE alerts SET is_resolved = true, resolved_at = NOW() WHERE id = :id AND tenant_id = :tid",
+        await s.execute(text("UPDATE alerts SET is_resolved = true, resolved_at = NOW() WHERE id = :id AND tenant_id = :tid"),
             {"id": alert_id, "tid": tenant_id}
         )
         await s.commit()

@@ -1,3 +1,6 @@
+import os
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -7,18 +10,48 @@ from redis.asyncio import Redis
 from backend.libs.shared.database import TenantRegistry, TenantEnginePool
 from backend.services.tenant.db import create_tenant_database, run_tenant_migrations, drop_tenant_database, get_tenant_connection_string
 
+logger = logging.getLogger("busly.tenant")
 redis: Redis = None
 tenant_registry: TenantRegistry = None
 engine_pool: TenantEnginePool = None
 
 
+async def bootstrap_default_tenant() -> None:
+    for attempt in range(30):
+        try:
+            await create_tenant_database("default")
+            await run_tenant_migrations("default")
+            context = await get_tenant_connection_string("default")
+            await tenant_registry.set(context)
+            logger.info("default tenant provisioned")
+            return
+        except Exception as e:
+            logger.warning("tenant bootstrap attempt %d failed: %s", attempt + 1, e)
+            await asyncio.sleep(2)
+    logger.error("tenant bootstrap failed after retries")
+
+
+async def _registry_keepalive() -> None:
+    while True:
+        await asyncio.sleep(600)
+        try:
+            context = await tenant_registry.get("default")
+            if not context:
+                await bootstrap_default_tenant()
+        except Exception as e:
+            logger.warning("registry keepalive failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global redis, tenant_registry, engine_pool
-    redis = Redis.from_url("redis://localhost:6379", decode_responses=True)
+    redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379"), decode_responses=True)
     tenant_registry = TenantRegistry(redis)
     engine_pool = TenantEnginePool()
+    await bootstrap_default_tenant()
+    keepalive = asyncio.create_task(_registry_keepalive())
     yield
+    keepalive.cancel()
     await redis.close()
 
 

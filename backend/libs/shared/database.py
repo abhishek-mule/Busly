@@ -14,10 +14,14 @@ class Base(DeclarativeBase):
     pass
 
 
+def nullable(value):
+    return None if value == "" else value
+
+
 class TenantRegistry:
     def __init__(self, redis: Redis):
         self.redis = redis
-        self.ttl = 300
+        self.ttl = None
 
     async def get(self, tenant_id: str) -> Optional[TenantContext]:
         key = f"tenant:{tenant_id}:db"
@@ -28,7 +32,10 @@ class TenantRegistry:
 
     async def set(self, context: TenantContext) -> None:
         key = f"tenant:{context.tenant_id}:db"
-        await self.redis.setex(key, timedelta(seconds=self.ttl), context.model_dump_json())
+        if self.ttl:
+            await self.redis.setex(key, timedelta(seconds=self.ttl), context.model_dump_json())
+        else:
+            await self.redis.set(key, context.model_dump_json())
 
     async def invalidate(self, tenant_id: str) -> None:
         await self.redis.delete(f"tenant:{tenant_id}:db")

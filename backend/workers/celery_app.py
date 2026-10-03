@@ -1,9 +1,12 @@
+import os
+
 from celery import Celery
+from kombu import Queue
 
 celery_app = Celery(
     "busly",
-    broker="amqp://guest:guest@localhost:5672/",
-    backend="redis://localhost:6379/0",
+    broker=os.environ.get("BROKER_URL", "amqp://guest:guest@localhost:5672/"),
+    backend=os.environ.get("RESULT_BACKEND", "redis://localhost:6379/0"),
 )
 
 celery_app.conf.update(
@@ -16,10 +19,24 @@ celery_app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_default_queue="default",
+    task_queues=[
+        Queue("default"),
+        Queue("optimization"),
+        Queue("reports"),
+        Queue("notifications"),
+        Queue("sync"),
+    ],
     task_routes={
         "backend.workers.tasks.route_optimizer.*": {"queue": "optimization"},
         "backend.workers.tasks.report_generator.*": {"queue": "reports"},
         "backend.workers.tasks.notification_sender.*": {"queue": "notifications"},
         "backend.workers.tasks.sync_processor.*": {"queue": "sync"},
     },
+)
+
+from backend.workers.tasks import (  # noqa: E402,F401
+    notification_sender,
+    report_generator,
+    route_optimizer,
+    sync_processor,
 )
