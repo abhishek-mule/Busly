@@ -75,9 +75,8 @@ export function useAuth() {
         setState({ user, isLoading: false, isAuthenticated: true });
         router.push('/dashboard');
       } catch {
-        localStorage.setItem('user', JSON.stringify({ email, role: 'admin' }));
-        setState({ user: { email, role: 'admin' }, isLoading: false, isAuthenticated: true });
-        router.push('/dashboard');
+        localStorage.removeItem('token');
+        return { success: false, error: 'Logged in but could not load your profile' };
       }
       return { success: true };
     } catch (error: any) {
@@ -126,7 +125,9 @@ export function useFetch<T>(
         return;
       }
       const response = await fetchFn();
-      const data = response.data;
+      const raw = response.data;
+      // Backend list endpoints return {items, total, page, page_size} — unwrap so callers get arrays.
+      const data = Array.isArray(raw) ? raw : (raw?.items ?? raw);
       if (options?.cache) {
         cacheRef.current.set(cacheKey, data);
       }

@@ -1,12 +1,12 @@
 'use client';
 
 import { useVehicles, useDrivers, useRoutes, useStudents, useAlerts } from '@/hooks/useBusly';
-import { tripsAPI, Trip } from '@/lib/api';
+import { tripsAPI, attendanceAPI, Trip } from '@/lib/api';
 import { useState, useEffect } from 'react';
 import {
   Bus, Users, MapPin, GraduationCap, TrendingUp,
   Clock, CheckCircle, AlertTriangle, ArrowRight,
-  Calendar, DollarSign, Bot
+  Calendar, DollarSign
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -54,6 +54,48 @@ export default function DashboardPage() {
 
   const [upcomingTrips, setUpcomingTrips] = useState<Trip[]>([]);
   const [tripsLoading, setTripsLoading] = useState(true);
+  const [week, setWeek] = useState<{ label: string; present: number; late: number; absent: number; marked: number }[]>([]);
+  const [weekLoading, setWeekLoading] = useState(true);
+
+  const dateStr = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        const days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          return d;
+        });
+        const results = await Promise.all(days.map(d => attendanceAPI.daily({ date: dateStr(d) })));
+        setWeek(results.map((r, i) => {
+          const items: any[] = r.data.items || [];
+          const uniq = (status: string) => new Set(items.filter(x => x.status === status).map(x => x.student_id)).size;
+          return {
+            label: days[i].toLocaleDateString(undefined, { weekday: 'short' }),
+            present: uniq('present'),
+            late: uniq('late'),
+            absent: uniq('absent'),
+            marked: new Set(items.map(x => x.student_id)).size,
+          };
+        }));
+      } catch {
+        setWeek([]);
+      } finally {
+        setWeekLoading(false);
+      }
+    };
+    fetch();
+  }, []);
+
+  const today = week[6];
+  const yesterday = week[5];
+  const weekHasData = week.some(d => d.marked > 0);
+  const trend =
+    yesterday && today && yesterday.present > 0 && today.marked > 0
+      ? Math.round(((today.present - yesterday.present) / yesterday.present) * 100)
+      : null;
+  const barMax = Math.max(1, ...week.map(d => d.marked));
 
   useEffect(() => {
     const fetch = async () => {
@@ -93,7 +135,6 @@ export default function DashboardPage() {
     },
     students: {
       total: studentArr.length,
-      todayPresent: studentArr.filter((s: any) => s.status === 'active').length,
     },
   };
 
@@ -132,12 +173,12 @@ export default function DashboardPage() {
       href: '/dashboard/routes'
     },
     {
-      title: 'Students Today',
-      value: sLoading ? '-' : `${stats.students.todayPresent}/${stats.students.total}`,
+      title: 'Present Today',
+      value: weekLoading ? '-' : `${today ? today.present : 0}/${stats.students.total}`,
       icon: GraduationCap,
       color: 'purple',
-      stats: sLoading ? 'Loading...' : `${stats.students.total > 0 ? Math.round((stats.students.todayPresent/stats.students.total)*100) : 0}% enrolled`,
-      href: '/dashboard/students'
+      stats: weekLoading ? 'Loading...' : today && today.marked > 0 ? `${today.marked} of ${stats.students.total} marked` : 'No attendance marked yet',
+      href: '/dashboard/attendance'
     },
   ];
 
@@ -169,25 +210,48 @@ export default function DashboardPage() {
               <h3 className="text-lg font-semibold text-slate-900">Weekly Attendance</h3>
               <p className="text-sm text-slate-500">Last 7 days overview</p>
             </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg">
-              <TrendingUp size={16} className="text-green-600" />
-              <span className="text-sm font-medium text-green-600">+5.2%</span>
-            </div>
-          </div>
-
-          <div className="h-48 flex items-end justify-between gap-2">
-            {[65, 78, 82, 75, 88, 92, 85].map((value, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div
-                  className="w-full bg-indigo-500 rounded-t-lg transition-all duration-500 hover:bg-indigo-600"
-                  style={{ height: `${value}%` }}
-                />
-                <span className="text-xs text-slate-400">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i]}
+            {trend !== null && (
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${trend >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <TrendingUp size={16} className={trend >= 0 ? 'text-green-600' : 'text-red-600 rotate-180'} />
+                <span className={`text-sm font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {trend >= 0 ? '+' : ''}{trend}% vs yesterday
                 </span>
               </div>
-            ))}
+            )}
           </div>
+
+          {weekLoading && (
+            <div className="h-48 flex items-center justify-center text-sm text-slate-400">Loading attendance...</div>
+          )}
+          {!weekLoading && !weekHasData && (
+            <div className="h-48 flex flex-col items-center justify-center text-center">
+              <Calendar size={28} className="text-slate-300 mb-2" />
+              <p className="text-sm text-slate-400">No attendance recorded in the last 7 days</p>
+              <Link href="/dashboard/attendance" className="text-sm text-indigo-600 font-medium mt-1">Mark attendance &rarr;</Link>
+            </div>
+          )}
+          {!weekLoading && weekHasData && (
+            <div className="h-48 flex items-end justify-between gap-2">
+              {week.map((day, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                  <div className="w-full flex flex-col justify-end" style={{ height: '160px' }}>
+                    {day.absent > 0 && (
+                      <div className="w-full bg-red-400" style={{ height: `${(day.absent / barMax) * 100}%` }} title={`${day.absent} absent`} />
+                    )}
+                    {day.late > 0 && (
+                      <div className="w-full bg-amber-400" style={{ height: `${(day.late / barMax) * 100}%` }} title={`${day.late} late`} />
+                    )}
+                    <div
+                      className="w-full bg-indigo-500 rounded-t-lg transition-all duration-500 hover:bg-indigo-600"
+                      style={{ height: `${(day.present / barMax) * 100}%` }}
+                      title={`${day.present} present`}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-400">{day.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-6 mt-4 pt-4 border-t border-slate-100">
             <div className="flex items-center gap-2">
@@ -195,7 +259,11 @@ export default function DashboardPage() {
               <span className="text-sm text-slate-600">Present</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-slate-200 rounded-full" />
+              <div className="w-3 h-3 bg-amber-400 rounded-full" />
+              <span className="text-sm text-slate-600">Late</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-400 rounded-full" />
               <span className="text-sm text-slate-600">Absent</span>
             </div>
           </div>
@@ -205,50 +273,61 @@ export default function DashboardPage() {
           <h3 className="text-lg font-semibold text-slate-900 mb-6">Today&apos;s Overview</h3>
 
           <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-                <CheckCircle className="text-green-600" size={20} />
+            {weekLoading && <p className="text-sm text-slate-400 text-center py-4">Loading attendance...</p>}
+            {!weekLoading && (!today || today.marked === 0) && (
+              <div className="text-center py-6">
+                <p className="text-sm text-slate-400">No attendance marked for today yet</p>
+                <Link href="/dashboard/attendance" className="text-sm text-indigo-600 font-medium">Mark attendance &rarr;</Link>
               </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700">Present</span>
-                  <span className="text-lg font-bold text-green-600">{stats.students.todayPresent}</span>
+            )}
+            {!weekLoading && today && today.marked > 0 && (
+              <>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                    <CheckCircle className="text-green-600" size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Present</span>
+                      <span className="text-lg font-bold text-green-600">{today.present}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full mt-1">
+                      <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${Math.round((today.present / today.marked) * 100)}%` }} />
+                    </div>
+                  </div>
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full mt-1">
-                  <div className="h-full w-[94.67%] bg-green-500 rounded-full" />
-                </div>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
-                <AlertTriangle className="text-red-600" size={20} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700">Absent</span>
-                  <span className="text-lg font-bold text-red-600">{stats.students.total - stats.students.todayPresent}</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                    <AlertTriangle className="text-red-600" size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Absent</span>
+                      <span className="text-lg font-bold text-red-600">{today.absent}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full mt-1">
+                      <div className="h-full bg-red-500 rounded-full transition-all duration-500" style={{ width: `${Math.round((today.absent / today.marked) * 100)}%` }} />
+                    </div>
+                  </div>
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full mt-1">
-                  <div className="h-full w-[5.33%] bg-red-500 rounded-full" />
-                </div>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Clock className="text-amber-600" size={20} />
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700">Late Arrival</span>
-                  <span className="text-lg font-bold text-amber-600">3</span>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                    <Clock className="text-amber-600" size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Late Arrival</span>
+                      <span className="text-lg font-bold text-amber-600">{today.late}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full mt-1">
+                      <div className="h-full bg-amber-500 rounded-full transition-all duration-500" style={{ width: `${Math.round((today.late / today.marked) * 100)}%` }} />
+                    </div>
+                  </div>
                 </div>
-                <div className="h-2 bg-slate-100 rounded-full mt-1">
-                  <div className="h-full w-[2%] bg-amber-500 rounded-full" />
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
 
           <Link
@@ -268,9 +347,9 @@ export default function DashboardPage() {
               <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
               <p className="text-sm text-slate-500">Latest updates from your fleet</p>
             </div>
-            <Link href="/dashboard/settings" className="text-sm text-indigo-600 font-medium hover:text-indigo-700">
-              View All
-            </Link>
+            <span className="text-sm text-slate-500">
+              {recentActivity.length > 0 ? `${recentActivity.length} recent` : ''}
+            </span>
           </div>
 
           <div className="space-y-4">
@@ -347,21 +426,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-700 rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold">AI Assistant</h3>
-            <p className="text-indigo-200 mt-1">Get instant answers about your fleet, routes, and students</p>
-          </div>
-          <Link
-            href="/dashboard/ai"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors"
-          >
-            <Bot size={20} />
-            Chat Now
-          </Link>
-        </div>
-      </div>
     </div>
   );
 }

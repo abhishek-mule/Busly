@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStudents } from '@/hooks/useBusly';
 import { studentsAPI } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { GraduationCap, Plus, Search, Filter, Phone, MapPin, Edit, Trash2, Loader2, X, Users, UserCheck, AlertCircle, CheckCircle } from 'lucide-react';
+import { GraduationCap, Plus, Search, Phone, MapPin, Edit, Trash2, Loader2, X, Users, UserCheck, AlertCircle, CheckCircle } from 'lucide-react';
 
 const initialForm = {
   first_name: '',
@@ -30,6 +30,10 @@ const initialForm = {
 export default function StudentsPage() {
   const { data: students, isLoading, error, refetch } = useStudents();
   const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setSearchTerm(q);
+  }, []);
   const [statusFilter, setStatusFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -213,10 +217,6 @@ export default function StudentsPage() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-            <Filter size={18} />
-            Filters
-          </button>
         </div>
       </div>
 

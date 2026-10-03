@@ -6,7 +6,7 @@ import { vehiclesAPI } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormField } from '@/components/ui/FormField';
-import { Bus, Plus, Search, Filter, MapPin, Wrench, Edit, Trash2, Loader2, X, XCircle } from 'lucide-react';
+import { Bus, Plus, Search, MapPin, Wrench, Edit, Trash2, Loader2, X, XCircle } from 'lucide-react';
 
 const defaultForm = {
   plate_number: '',
@@ -39,6 +39,10 @@ function toDateValue(date: string | null | undefined): string {
 export default function VehiclesPage() {
   const { data: vehicles, isLoading, error, refetch } = useVehicles();
   const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setSearchTerm(q);
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
@@ -204,10 +208,6 @@ export default function VehiclesPage() {
               className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50"
             />
           </div>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-            <Filter size={18} />
-            Filters
-          </button>
         </div>
 
         {isLoading && (

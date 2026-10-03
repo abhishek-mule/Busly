@@ -1,54 +1,64 @@
 'use client';
 
-import { useState } from 'react';
-import { FileText, Download, Calendar, BarChart3, TrendingUp, Users, Bus, CreditCard, Clock, Search, Filter, Eye, Trash2, Loader2, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { reportsAPI } from '@/lib/api';
+import { FileText, Download, Users, Bus, GraduationCap, Route, Loader2, X, CheckCircle, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 
-interface ReportType {
-  id: string;
-  title: string;
-  description: string;
-  icon: any;
-  color: string;
-  bgColor: string;
-}
-
-interface RecentReport {
-  id: number;
-  name: string;
-  type: string;
-  date_range: string;
-  generated_at: string;
-  size: string;
-  format: string;
-}
-
-const reportTypes: ReportType[] = [
-  { id: 'attendance', title: 'Attendance Report', description: 'Daily, weekly, and monthly student attendance summaries', icon: Users, color: 'text-teal-600', bgColor: 'bg-teal-50' },
-  { id: 'fleet', title: 'Fleet Utilization', description: 'Vehicle usage, mileage, and efficiency metrics', icon: Bus, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-  { id: 'route', title: 'Route Performance', description: 'Route efficiency, timing, and stop analysis', icon: TrendingUp, color: 'text-purple-600', bgColor: 'bg-purple-50' },
-  { id: 'fee', title: 'Fee Collection', description: 'Fee payment status, pending dues, and revenue', icon: CreditCard, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
-  { id: 'driver', title: 'Driver Performance', description: 'Driver ratings, trips completed, and punctuality', icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+const reportTypes = [
+  { id: 'attendance', title: 'Attendance Report', description: 'Student attendance records with dates and statuses', icon: Users, color: 'text-teal-600', bgColor: 'bg-teal-50' },
+  { id: 'students', title: 'Student Roster', description: 'All enrolled students with class and section', icon: GraduationCap, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+  { id: 'vehicles', title: 'Fleet Utilization', description: 'Vehicles with type, status, and seating capacity', icon: Bus, color: 'text-blue-600', bgColor: 'bg-blue-50' },
+  { id: 'trips', title: 'Trip Records', description: 'Scheduled and completed trips by route', icon: Route, color: 'text-amber-600', bgColor: 'bg-amber-50' },
 ];
 
-const recentReports: RecentReport[] = [
-  { id: 1, name: 'Monthly Attendance - August 2026', type: 'Attendance', date_range: 'Aug 1 - Aug 31, 2026', generated_at: 'Sep 1, 2026', size: '2.4 MB', format: 'PDF' },
-  { id: 2, name: 'Fleet Utilization Q3 2026', type: 'Fleet', date_range: 'Jul 1 - Sep 30, 2026', generated_at: 'Sep 15, 2026', size: '1.8 MB', format: 'PDF' },
-  { id: 3, name: 'Route Performance Analysis', type: 'Route', date_range: 'Aug 1 - Aug 31, 2026', generated_at: 'Sep 5, 2026', size: '3.1 MB', format: 'PDF' },
-  { id: 4, name: 'Fee Collection Summary', type: 'Fee', date_range: 'Aug 1 - Aug 31, 2026', generated_at: 'Sep 2, 2026', size: '1.2 MB', format: 'Excel' },
-  { id: 5, name: 'Driver Performance Review', type: 'Driver', date_range: 'Jul 1 - Aug 31, 2026', generated_at: 'Sep 10, 2026', size: '980 KB', format: 'PDF' },
-];
+const statusStyles: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  failed: 'bg-red-50 text-red-700 border-red-200',
+};
+
+const fmtDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function ReportsPage() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [dateFrom, setDateFrom] = useState('2026-08-01');
-  const [dateTo, setDateTo] = useState('2026-08-31');
+  const today = new Date();
+  const monthAgo = new Date();
+  monthAgo.setMonth(monthAgo.getMonth() - 1);
+  const [dateFrom, setDateFrom] = useState(fmtDate(monthAgo));
+  const [dateTo, setDateTo] = useState(fmtDate(today));
   const [generating, setGenerating] = useState(false);
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
+
+  const loadReports = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const { data } = await reportsAPI.list({ limit: 50 });
+      setReports(data.items || []);
+    } catch {
+      setReports([]);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  useEffect(() => {
+    const hasPending = reports.some(r => r.status === 'pending');
+    if (!hasPending) return;
+    const t = setInterval(() => loadReports(true), 3000);
+    return () => clearInterval(t);
+  }, [reports, loadReports]);
 
   const handleGenerate = async () => {
     if (!selectedType) {
@@ -57,30 +67,44 @@ export default function ReportsPage() {
     }
     setGenerating(true);
     try {
-      await new Promise(r => setTimeout(r, 1500));
       const type = reportTypes.find(t => t.id === selectedType);
-      showToast(`${type?.title} generated successfully`, 'success');
+      await reportsAPI.generate({
+        report_type: selectedType,
+        title: `${type?.title} — ${dateFrom} to ${dateTo}`,
+        parameters: { date_from: dateFrom, date_to: dateTo },
+      });
+      showToast(`${type?.title} queued — generating in background`, 'success');
       setSelectedType(null);
+      await loadReports(true);
     } catch {
-      showToast('Failed to generate report', 'error');
+      showToast('Failed to queue report', 'error');
     } finally {
       setGenerating(false);
     }
   };
 
-  const handleDownload = (report: RecentReport) => {
-    showToast(`Downloading ${report.name}...`, 'success');
+  const handleDownload = async (report: any) => {
+    setDownloadingId(report.id);
+    try {
+      let response;
+      try {
+        response = await reportsAPI.file(report.id);
+      } catch {
+        response = await reportsAPI.download(report.id);
+      }
+      const url = URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${report.report_type}-report.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Report downloaded', 'success');
+    } catch {
+      showToast('Download failed', 'error');
+    } finally {
+      setDownloadingId(null);
+    }
   };
-
-  const chartData = [
-    { label: 'Mon', attendance: 92, fleet: 85 },
-    { label: 'Tue', attendance: 88, fleet: 90 },
-    { label: 'Wed', attendance: 95, fleet: 88 },
-    { label: 'Thu', attendance: 90, fleet: 92 },
-    { label: 'Fri', attendance: 87, fleet: 86 },
-    { label: 'Sat', attendance: 75, fleet: 70 },
-    { label: 'Sun', attendance: 0, fleet: 0 },
-  ];
 
   return (
     <div className="space-y-6">
@@ -97,11 +121,18 @@ export default function ReportsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Reports</h1>
-          <p className="text-slate-500 mt-1">Generate and download operational reports</p>
+          <p className="text-slate-500 mt-1">Generate reports from live data (processed in background)</p>
         </div>
+        <button
+          onClick={() => loadReports()}
+          className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium"
+        >
+          <RefreshCw size={16} />
+          Refresh
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {reportTypes.map((type) => (
           <div
             key={type.id}
@@ -167,104 +198,68 @@ export default function ReportsPage() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Weekly Overview</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-sm font-medium text-slate-600 mb-3">Attendance Rate (%)</p>
-            <div className="flex items-end gap-2 h-40">
-              {chartData.map((d, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-100 rounded-t-lg relative" style={{ height: '120px' }}>
-                    <div
-                      className="absolute bottom-0 w-full bg-gradient-to-t from-teal-500 to-teal-400 rounded-t-lg transition-all"
-                      style={{ height: `${d.attendance}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-slate-500">{d.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-600 mb-3">Fleet Utilization (%)</p>
-            <div className="flex items-end gap-2 h-40">
-              {chartData.map((d, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <div className="w-full bg-slate-100 rounded-t-lg relative" style={{ height: '120px' }}>
-                    <div
-                      className="absolute bottom-0 w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg transition-all"
-                      style={{ height: `${d.fleet}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-slate-500">{d.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search reports..."
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50"
-            />
-          </div>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-            <Filter size={18} />
-            Filters
-          </button>
+        <div className="p-4 border-b border-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">Generated Reports</h3>
+          <p className="text-sm text-slate-500 mt-0.5">Reports run as background jobs — pending ones update automatically</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Report Name</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Report</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Date Range</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Generated</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Size</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Created</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recentReports.map((report) => (
+              {loading && (
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">Loading reports...</td></tr>
+              )}
+              {!loading && reports.map((report) => (
                 <tr key={report.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center">
                         <FileText size={18} className="text-white" />
                       </div>
-                      <span className="font-medium text-slate-900">{report.name}</span>
+                      <span className="font-medium text-slate-900">{report.title}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">{report.type}</span>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">{report.report_type}</span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{report.date_range}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{report.generated_at}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{report.size}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock size={14} className="text-slate-400" />
+                      {report.created_at ? new Date(report.created_at).toLocaleString() : '-'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${statusStyles[report.status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                      {report.status === 'pending' && <Loader2 size={12} className="animate-spin" />}
+                      {report.status === 'completed' && <CheckCircle size={12} />}
+                      {report.status === 'failed' && <AlertCircle size={12} />}
+                      {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleDownload(report)}
-                        className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
-                        title="Download"
-                      >
-                        <Download size={18} />
-                      </button>
-                      <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors" title="Preview">
-                        <Eye size={18} />
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => handleDownload(report)}
+                      disabled={report.status !== 'completed' || downloadingId === report.id}
+                      className="p-2 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={report.status === 'completed' ? 'Download CSV' : 'Available when completed'}
+                    >
+                      {downloadingId === report.id ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+                    </button>
                   </td>
                 </tr>
               ))}
+              {!loading && reports.length === 0 && (
+                <tr><td colSpan={5} className="px-6 py-12 text-center text-slate-400">No reports yet — pick a type above and generate one</td></tr>
+              )}
             </tbody>
           </table>
         </div>

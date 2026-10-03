@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Mail, Lock, Bus } from 'lucide-react';
+import Image from 'next/image';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { authAPI } from '@/lib/api';
 
 export default function LoginPage() {
@@ -23,16 +24,17 @@ export default function LoginPage() {
       const data = response.data;
 
       localStorage.setItem('token', data.access_token);
+      if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
 
       try {
         const meResponse = await authAPI.me();
         const user = meResponse.data;
-        localStorage.setItem('user', JSON.stringify(user));
-        const rolePath = user.role === 'admin' ? '/dashboard' : user.role === 'driver' ? '/driver' : '/parent';
-        router.push(rolePath);
-      } catch {
-        localStorage.setItem('user', JSON.stringify({ email, role: 'admin' }));
+        const role = user.role || user.roles?.[0] || 'admin';
+        localStorage.setItem('user', JSON.stringify({ ...user, role }));
         router.push('/dashboard');
+      } catch {
+        localStorage.removeItem('token');
+        setError('Logged in but could not load your profile. Please try again.');
       }
     } catch {
       setError('Invalid email or password. Please contact your school administrator.');
@@ -51,8 +53,8 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4">
-            <Bus className="w-8 h-8 text-indigo-600" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4 overflow-hidden">
+            <Image src="/busly.png" alt="Busly" width={56} height={56} priority />
           </div>
           <h1 className="text-3xl font-bold text-white">Busly</h1>
           <p className="text-indigo-200 mt-2">School Transport Management</p>
@@ -107,13 +109,7 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                <span className="text-sm text-slate-600">Remember me</span>
-              </label>
-              <a href="#" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                Forgot password?
-              </a>
+              <p className="text-sm text-slate-500">Sign in with your organization account</p>
             </div>
 
             <button

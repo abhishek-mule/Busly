@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStops, useRoutes } from '@/hooks/useBusly';
 import { stopsAPI } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { MapPin, Plus, Search, Filter, Clock, Navigation, Edit, Trash2, Loader2, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { MapPin, Plus, Search, Clock, Navigation, Edit, Trash2, Loader2, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 const initialForm = {
   route_id: '',
@@ -24,6 +24,10 @@ export default function StopsPage() {
   const { data: routes } = useRoutes();
   const [searchTerm, setSearchTerm] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get('route');
+    if (r) setRouteFilter(r);
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
@@ -205,10 +209,6 @@ export default function StopsPage() {
               <option key={route.id} value={route.id}>{route.name}</option>
             ))}
           </select>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-            <Filter size={18} />
-            Filters
-          </button>
         </div>
       </div>
 

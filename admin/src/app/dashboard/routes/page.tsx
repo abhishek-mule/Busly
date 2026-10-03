@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useRoutes } from '@/hooks/useBusly';
-import { MapPin, Plus, Search, Filter, Clock, Navigation, Bus, Map, Eye, Edit, Trash2, Play, Loader2, X, CheckCircle, AlertCircle, Sparkles } from 'lucide-react';
+import { MapPin, Plus, Search, Clock, Navigation, Bus, Map, Eye, Edit, Trash2, Play, Loader2, X, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -24,14 +25,49 @@ const initialForm = {
 };
 
 export default function RoutesPage() {
+  const router = useRouter();
   const { data: routes, isLoading, error, refetch: mutate } = useRoutes();
   const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setSearchTerm(q);
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; item: any }>({ isOpen: false, item: null });
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ show: boolean; type: 'success' | 'error'; message: string }>({ show: false, type: 'success', message: '' });
+  const [optRoute, setOptRoute] = useState('');
+  const [optState, setOptState] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
+  const [optResult, setOptResult] = useState<string[]>([]);
+
+  const runOptimize = async () => {
+    if (!optRoute || optState === 'running') return;
+    setOptState('running');
+    setOptResult([]);
+    try {
+      const { data } = await routesAPI.optimize(optRoute);
+      const taskId = data.task_id;
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const st = await routesAPI.optimizeStatus(optRoute, taskId);
+        if (st.data.status === 'completed') {
+          setOptState('done');
+          setOptResult(st.data.result?.optimized_order || []);
+          mutate();
+          return;
+        }
+        if (st.data.status === 'failed') {
+          setOptState('failed');
+          return;
+        }
+      }
+      setOptState('failed');
+    } catch {
+      setOptState('failed');
+    }
+  };
 
   const showToast = (type: 'success' | 'error', message: string) => {
     setToast({ show: true, type, message });
@@ -265,10 +301,6 @@ export default function RoutesPage() {
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50"
                 />
               </div>
-              <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-                <Filter size={18} />
-                Filters
-              </button>
             </div>
           </div>
 
@@ -344,7 +376,7 @@ export default function RoutesPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-medium hover:bg-indigo-100 transition-colors">
+                  <button onClick={() => router.push(`/dashboard/stops?route=${route.id}`)} className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl font-medium hover:bg-indigo-100 transition-colors">
                     <Eye size={18} />
                     View Stops
                   </button>
@@ -368,13 +400,13 @@ export default function RoutesPage() {
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Route Overview</h3>
-            <div className="h-48 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center mb-4">
+            <button onClick={() => router.push('/dashboard/map')} className="w-full h-48 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center mb-4 hover:from-indigo-50 hover:to-indigo-100 transition-colors">
               <div className="text-center">
                 <Map className="mx-auto text-slate-400 mb-2" size={40} />
-                <p className="text-slate-500 text-sm font-medium">Interactive Map</p>
-                <p className="text-slate-400 text-xs">Select a route to view</p>
+                <p className="text-slate-500 text-sm font-medium">Live Map</p>
+                <p className="text-indigo-600 text-xs font-medium">Open live fleet map</p>
               </div>
-            </div>
+            </button>
             <div className="space-y-3">
               <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-100">
                 <div className="flex items-center gap-3">
@@ -394,15 +426,41 @@ export default function RoutesPage() {
                 </div>
                 <span className="text-slate-600 font-semibold">{inactiveCount} routes</span>
               </div>
+              <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                <p className="font-medium text-indigo-900 text-sm mb-2">Optimize stop order</p>
+                <select
+                  value={optRoute}
+                  onChange={(e) => { setOptRoute(e.target.value); setOptState('idle'); setOptResult([]); }}
+                  className="w-full mb-2 px-3 py-2 text-sm border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                >
+                  <option value="">Select a route…</option>
+                  {routeArr.map((r: any) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={runOptimize}
+                  disabled={!optRoute || optState === 'running'}
+                  className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors"
+                >
+                  {optState === 'running' ? 'Optimizing…' : 'Reorder by shortest path'}
+                </button>
+                {optState === 'done' && (
+                  <p className="text-xs text-emerald-700 mt-2 font-medium">Done — {optResult.length} stops reordered.</p>
+                )}
+                {optState === 'failed' && (
+                  <p className="text-xs text-red-600 mt-2 font-medium">Optimization failed. Try again.</p>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white">
-            <h3 className="font-semibold mb-2">AI Route Optimization</h3>
-            <p className="text-indigo-200 text-sm mb-4">Optimize your routes using AI to reduce travel time and fuel costs</p>
-            <button className="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
-              <Sparkles size={18} />
-              Optimize Routes
+            <h3 className="font-semibold mb-2">Trip Reports</h3>
+            <p className="text-indigo-200 text-sm mb-4">Generate attendance, fleet and trip reports as CSV</p>
+            <button onClick={() => router.push('/dashboard/reports')} className="w-full py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+              <FileText size={18} />
+              Open Reports
             </button>
           </div>
         </div>

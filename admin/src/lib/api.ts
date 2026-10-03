@@ -53,7 +53,7 @@ export const authAPI = {
     api.post('/auth/login', { email: credentials.username, password: credentials.password, tenant_id: 'default' }),
   me: () => api.get('/auth/me'),
   update: (data: any) => api.put('/auth/me', data),
-  logout: () => api.post('/auth/logout'),
+  logout: (refreshToken?: string) => api.post('/auth/logout', { refresh_token: refreshToken || '' }),
   changePassword: (data: any) => api.post('/auth/change-password', data),
 };
 
@@ -86,6 +86,7 @@ export const routesAPI = {
   delete: (id: string) => api.delete(`/routes/${id}`),
   stops: (id: string) => api.get(`/routes/${id}/stops`),
   optimize: (id: string) => api.post(`/routes/${id}/optimize`),
+  optimizeStatus: (id: string, taskId: string) => api.get(`/routes/${id}/optimize/${taskId}/status`),
 };
 
 export const stopsAPI = {
@@ -133,17 +134,12 @@ export const gpsAPI = {
   history: (id: string, params?: any) => api.get(`/gps/vehicle/${id}/history`, { params }),
 };
 
-export const aiAPI = {
-  chat: (data: any) => api.post('/ai/chat', data),
-  insights: () => api.get('/ai/insights'),
-  optimizeRoute: (data: any) => api.post('/ai/optimize-route', data),
-  eta: (data: any) => api.post('/ai/eta', data),
-};
-
 export const reportsAPI = {
   list: (params?: any) => api.get('/reports', { params }),
   generate: (data: any) => api.post('/reports', data),
   get: (id: string) => api.get(`/reports/${id}`),
+  download: (id: string) => api.get(`/reports/${id}/download`, { responseType: 'blob' }),
+  file: (id: string) => api.get(`/reports/${id}/file`, { responseType: 'blob' }),
 };
 
 export const notificationsAPI = {

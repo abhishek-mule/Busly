@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useStudents, useVehicles } from '@/hooks/useBusly';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useStudents } from '@/hooks/useBusly';
+import { attendanceAPI } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { Activity, Calendar, Clock, Download, Search, Filter, CheckCircle, XCircle, AlertTriangle, Users, TrendingUp, Check, X } from 'lucide-react';
@@ -11,42 +12,58 @@ const statusColors: Record<string, string> = {
   absent: 'bg-red-50 text-red-700 border-red-200',
   late: 'bg-amber-50 text-amber-700 border-amber-200',
   excused: 'bg-blue-50 text-blue-700 border-blue-200',
+  not_marked: 'bg-slate-50 text-slate-500 border-slate-200',
 };
+
+const tripLabel = (t: string) => (t === 'pickup' ? 'Morning Pickup' : t === 'dropoff' ? 'Evening Drop' : '-');
 
 export default function AttendancePage() {
   const { data: students } = useStudents();
-  const { data: vehicles } = useVehicles();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [statusFilter, setStatusFilter] = useState('');
   const [tripFilter, setTripFilter] = useState('');
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<'present' | 'absent' | 'late'>('present');
+  const [bulkTrip, setBulkTrip] = useState<'pickup' | 'dropoff'>('pickup');
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [records, setRecords] = useState<any[]>([]);
+  const [attLoading, setAttLoading] = useState(true);
   const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
 
   const studentArr = Array.isArray(students) ? students : [];
-  const vehicleArr = Array.isArray(vehicles) ? vehicles : [];
 
-  const records = useMemo(() => {
-    return studentArr.flatMap((s: any) => {
-      const today = new Date().toISOString().split('T')[0];
-      const hasRecord = s.last_attendance_date === today;
-      const statuses = ['present', 'present', 'present', 'late', 'absent'];
-      const status = hasRecord ? s.last_attendance_status || 'present' : statuses[Math.floor(Math.random() * statuses.length)];
-      return [{
-        id: s.id,
-        student_name: `${s.first_name} ${s.last_name}`,
-        class_name: s.class_name || '-',
-        date: dateFilter,
-        trip_type: 'Morning Pickup',
-        status,
-        check_in_time: status === 'absent' ? null : `${7 + Math.floor(Math.random() * 2)}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')} AM`,
-        vehicle: vehicleArr[Math.floor(Math.random() * Math.max(vehicleArr.length, 1))]?.plate_number || 'BUS-001',
-      }];
-    });
-  }, [studentArr, dateFilter, vehicleArr]);
+  const loadRecords = useCallback(async () => {
+    setAttLoading(true);
+    try {
+      const { data } = await attendanceAPI.daily({ date: dateFilter });
+      const items: any[] = data.items || [];
+      const byStudent = new Map(items.map(x => [x.student_id, x]));
+      setRecords(studentArr.map((s: any) => {
+        const rec = byStudent.get(s.id);
+        return {
+          id: String(s.id),
+          student_name: `${s.first_name} ${s.last_name}`,
+          class_name: s.class_name || '-',
+          date: dateFilter,
+          trip_type: rec?.trip_type || '',
+          status: rec?.status || 'not_marked',
+          check_in_time: rec?.check_in_time
+            ? new Date(rec.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : null,
+        };
+      }));
+    } catch {
+      setRecords([]);
+    } finally {
+      setAttLoading(false);
+    }
+  }, [dateFilter, studentArr]);
+
+  useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
 
   const filtered = records.filter((r: any) => {
     const matchesSearch = !searchTerm || r.student_name.toLowerCase().includes(searchTerm.toLowerCase()) || r.class_name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -55,11 +72,13 @@ export default function AttendancePage() {
     return matchesSearch && matchesStatus && matchesTrip;
   });
 
+  const markedCount = filtered.filter((r: any) => r.status !== 'not_marked').length;
+  const presentCount = filtered.filter((r: any) => r.status === 'present').length;
   const stats = [
-    { label: 'Present Today', value: filtered.filter((r: any) => r.status === 'present').length, icon: CheckCircle, color: 'green' },
+    { label: 'Present', value: presentCount, icon: CheckCircle, color: 'green' },
     { label: 'Absent', value: filtered.filter((r: any) => r.status === 'absent').length, icon: XCircle, color: 'red' },
     { label: 'Late', value: filtered.filter((r: any) => r.status === 'late').length, icon: Clock, color: 'amber' },
-    { label: 'Attendance Rate', value: `${filtered.length ? Math.round((filtered.filter((r: any) => r.status === 'present').length / filtered.length) * 100) : 0}%`, icon: TrendingUp, color: 'blue' },
+    { label: 'Attendance Rate', value: `${markedCount ? Math.round((presentCount / markedCount) * 100) : 0}%`, icon: TrendingUp, color: 'blue' },
   ];
 
   const showToast = (message: string, type: 'success' | 'error') => {
@@ -67,7 +86,7 @@ export default function AttendancePage() {
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const toggleSelect = (id: number) => {
+  const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -83,10 +102,17 @@ export default function AttendancePage() {
   const handleBulkSubmit = async () => {
     setBulkSubmitting(true);
     try {
-      await new Promise(r => setTimeout(r, 800));
+      const items = Array.from(selected).map(id => ({
+        student_id: id,
+        status: bulkStatus,
+        date: dateFilter,
+        trip_type: bulkTrip,
+      }));
+      await attendanceAPI.bulk({ items });
       showToast(`Attendance marked for ${selected.size} students`, 'success');
       setSelected(new Set());
       setShowBulkModal(false);
+      await loadRecords();
     } catch {
       showToast('Failed to mark attendance', 'error');
     } finally {
@@ -95,7 +121,7 @@ export default function AttendancePage() {
   };
 
   const handleExport = () => {
-    const csv = ['Student,Class,Date,Trip,Status,Check-in', ...filtered.map((r: any) => `${r.student_name},${r.class_name},${r.date},${r.trip_type},${r.status},${r.check_in_time || '-'}`)].join('\n');
+    const csv = ['Student,Class,Date,Trip,Status,Check-in', ...filtered.map((r: any) => `${r.student_name},${r.class_name},${r.date},${tripLabel(r.trip_type)},${r.status},${r.check_in_time || '-'}`)].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -178,17 +204,13 @@ export default function AttendancePage() {
             <option value="present">Present</option>
             <option value="absent">Absent</option>
             <option value="late">Late</option>
-            <option value="excused">Excused</option>
+            <option value="not_marked">Not Marked</option>
           </select>
           <select value={tripFilter} onChange={(e) => setTripFilter(e.target.value)} className="px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
             <option value="">All Trips</option>
-            <option value="Morning Pickup">Morning Pickup</option>
-            <option value="Evening Drop">Evening Drop</option>
+            <option value="pickup">Morning Pickup</option>
+            <option value="dropoff">Evening Drop</option>
           </select>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-            <Filter size={18} />
-            Filters
-          </button>
         </div>
       </div>
 
@@ -219,11 +241,15 @@ export default function AttendancePage() {
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Trip</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Check-in</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Vehicle</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((record: any) => (
+              {attLoading && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">Loading attendance...</td>
+                </tr>
+              )}
+              {!attLoading && filtered.map((record: any) => (
                 <tr key={record.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-6 py-4">
                     <input type="checkbox" checked={selected.has(record.id)} onChange={() => toggleSelect(record.id)} className="rounded border-slate-300" />
@@ -238,19 +264,18 @@ export default function AttendancePage() {
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">{record.class_name}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{record.date}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{record.trip_type}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{tripLabel(record.trip_type)}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusColors[record.status] || 'bg-slate-50 text-slate-700 border-slate-200'}`}>
-                      {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                      {record.status === 'not_marked' ? 'Not Marked' : record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600">{record.check_in_time || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{record.vehicle}</td>
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {!attLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-400">No attendance records found</td>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400">No students found</td>
                 </tr>
               )}
             </tbody>
@@ -265,6 +290,10 @@ export default function AttendancePage() {
             { value: 'present', label: 'Present' },
             { value: 'absent', label: 'Absent' },
             { value: 'late', label: 'Late' },
+          ]} required />
+          <FormField label="Trip" name="bulkTrip" type="select" value={bulkTrip} onChange={(e: any) => setBulkTrip(e.target.value)} options={[
+            { value: 'pickup', label: 'Morning Pickup' },
+            { value: 'dropoff', label: 'Evening Drop' },
           ]} required />
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button onClick={() => setShowBulkModal(false)} className="px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 font-medium hover:bg-slate-50 transition-colors">Cancel</button>

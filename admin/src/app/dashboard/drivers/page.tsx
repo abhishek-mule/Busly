@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDrivers } from '@/hooks/useBusly';
 import { driversAPI } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Users, Plus, Search, Filter, Phone, Car, Star, Edit, Trash2, Loader2, X } from 'lucide-react';
+import { Users, Plus, Search, Phone, Car, Star, Edit, Trash2, Loader2, X } from 'lucide-react';
 
 const initialForm = {
   first_name: '',
@@ -24,6 +24,10 @@ const initialForm = {
 export default function DriversPage() {
   const { data: drivers, isLoading, error, refetch } = useDrivers();
   const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q');
+    if (q) setSearchTerm(q);
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
@@ -43,13 +47,15 @@ export default function DriversPage() {
 
   const stats = [
     { label: 'Total Drivers', value: driverArr.length, icon: Users, color: 'blue' },
-    { label: 'Active Now', value: driverArr.filter((d: any) => d.status === 'active').length, icon: Car, color: 'green' },
+    { label: 'Active Now', value: driverArr.filter((d: any) => d.status !== 'inactive').length, icon: Car, color: 'green' },
     { label: 'Avg Rating', value: avgRating, icon: Star, color: 'amber' },
   ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'active':
+      case 'available':
+      case 'on_trip': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'inactive': return 'bg-slate-50 text-slate-600 border-slate-200';
       default: return 'bg-slate-50 text-slate-700 border-slate-200';
     }
@@ -186,10 +192,6 @@ export default function DriversPage() {
               className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50"
             />
           </div>
-          <button className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors font-medium">
-            <Filter size={18} />
-            Filters
-          </button>
         </div>
       </div>
 
@@ -212,7 +214,7 @@ export default function DriversPage() {
                   <h3 className="font-semibold text-slate-900 text-lg">{driver.first_name} {driver.last_name || ''}</h3>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(driver.status)}`}>
                     <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                      driver.status === 'active' ? 'bg-emerald-500' : 'bg-slate-400'
+                      driver.status !== 'inactive' ? 'bg-emerald-500' : 'bg-slate-400'
                     }`} />
                     {driver.status.charAt(0).toUpperCase() + driver.status.slice(1)}
                   </span>
