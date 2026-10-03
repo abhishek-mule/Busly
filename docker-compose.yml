@@ -1,4 +1,13 @@
-version: '3.8'
+x-service-env: &service-env
+  REDIS_URL: redis://redis:6379
+  SHARED_DB_URL: postgresql://busly:password@postgres:5432/busly
+  DB_USER: busly
+  DB_PASSWORD: password
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  ASYNC_PREFIX: postgresql+asyncpg://busly:password@postgres:5432
+  BROKER_URL: amqp://guest:guest@rabbitmq:5672/
+  RESULT_BACKEND: redis://redis:6379/0
 
 services:
   postgres:
@@ -8,14 +17,14 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: busly
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -27,8 +36,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    command: uvicorn backend.services.gateway.main:app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *service-env
     ports:
       - "8000:8000"
+    volumes:
+      - /etc/keys:/etc/keys:ro
     depends_on:
       - postgres
       - redis
@@ -39,14 +53,16 @@ services:
       - student-service
       - notification-service
       - tenant-service
-      - ai-service
 
   auth-service:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8001:8001"
+    command: uvicorn backend.services.auth.main:app --host 0.0.0.0 --port 8001
+    environment:
+      <<: *service-env
+    volumes:
+      - /etc/keys:/etc/keys:ro
     depends_on:
       - postgres
       - redis
@@ -55,8 +71,11 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8002:8002"
+    command: uvicorn backend.services.fleet.main:app --host 0.0.0.0 --port 8002
+    environment:
+      <<: *service-env
+    volumes:
+      - report_files:/var/busly/reports
     depends_on:
       - postgres
       - redis
@@ -65,8 +84,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8003:8003"
+    command: uvicorn backend.services.routing.main:app --host 0.0.0.0 --port 8003
+    environment:
+      <<: *service-env
     depends_on:
       - postgres
       - redis
@@ -75,8 +95,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8005:8005"
+    command: uvicorn backend.services.geo.main:app --host 0.0.0.0 --port 8005
+    environment:
+      <<: *service-env
     depends_on:
       - postgres
       - redis
@@ -85,8 +106,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8004:8004"
+    command: uvicorn backend.services.students.main:app --host 0.0.0.0 --port 8004
+    environment:
+      <<: *service-env
     depends_on:
       - postgres
       - redis
@@ -95,8 +117,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8008:8008"
+    command: uvicorn backend.services.notifications.main:app --host 0.0.0.0 --port 8008
+    environment:
+      <<: *service-env
     depends_on:
       - postgres
       - redis
@@ -105,18 +128,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8006:8006"
-    depends_on:
-      - postgres
-      - redis
-
-  ai-service:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8009:8009"
+    command: uvicorn backend.services.tenant.main:app --host 0.0.0.0 --port 8006
+    environment:
+      <<: *service-env
     depends_on:
       - postgres
       - redis
@@ -129,6 +143,11 @@ services:
     depends_on:
       - rabbitmq
       - redis
+    environment:
+      <<: *service-env
+    volumes:
+      - report_files:/var/busly/reports
 
 volumes:
   postgres_data:
+  report_files:
