@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Busly Parent",
+    "slug": "busly-parent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#6366f1"
+    },
+    "android": {
+      "package": "app.busly.parent"
+    },
+    "ios": {
+      "bundleIdentifier": "app.busly.parent"
+    },
+    "plugins": [
+      "expo-status-bar"
+    ]
+  }
+}
