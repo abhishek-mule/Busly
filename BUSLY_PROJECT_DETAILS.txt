@@ -1,0 +1,389 @@
+================================================================================
+BUSLY - COMPLETE PROJECT DETAILS
+School Transport Management System (live GPS tracking + attendance + fleet)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+Busly is a school transport management platform. It tracks school buses live
+on GPS, manages drivers, vehicles, routes, stops and students, records trip
+attendance, generates reports, and raises alerts (e.g. geofence entry/exit).
+
+Parts of the system:
+  - Backend   : 8 FastAPI microservices + 1 API gateway + Celery workers
+                (Python 3.11, Docker Compose, 12 containers total)
+  - Admin     : Next.js 14 web dashboard (TypeScript + Tailwind CSS)
+  - Mobile    : One Expo SDK 57 app (React Native) that reshapes itself by role
+                (driver / parent / teacher / admin)
+  - Data      : PostgreSQL 15 + PostGIS, Redis 7, RabbitMQ 3
+
+Total cost to run: $0 (self-hosted with Docker + free Cloudflare Tunnel).
+
+--------------------------------------------------------------------------------
+2. TECH STACK
+--------------------------------------------------------------------------------
+BACKEND (backend/, Python 3.11-slim Docker image)
+  fastapi==0.104.1            - async REST API framework (all 9 services)
+  uvicorn[standard]==0.24.0   - ASGI server running each service
+  sqlalchemy[asyncio]==2.0.23 - async ORM
+  asyncpg==0.29.0             - async Postgres driver
+  redis==5.0.1                - caching, sessions, rate limiting, token revoke
+  celery==5.3.4               - background workers (route optimizer, reports)
+  pydantic==2.5.2             - request/response validation
+  python-jose / PyJWT         - RS256 JWT signing and verification
+  passlib[bcrypt]             - password hashing
+  httpx==0.25.2               - gateway reverse-proxy to microservices
+  websockets==12.0            - live GPS streams
+  prometheus-client           - /metrics endpoint
+  email-validator             - login/register email checks
+
+ADMIN DASHBOARD (admin/, Next.js 14.0.3)
+  next 14.0.3, react 18.2, react-dom 18.2
+  axios (API calls), recharts (charts), leaflet + react-leaflet (maps)
+  lucide-react (icons), date-fns (dates), tailwindcss 3.3 (styling)
+  typescript 5.3
+
+MOBILE APP (busly-app/, Expo SDK 57)
+  expo ~57.0.0, react 19.2.3, react-native 0.86.3
+  @react-navigation/native + bottom-tabs + native-stack (navigation)
+  react-native-maps 1.27.2 (live bus map, stop pins, route polyline)
+  expo-location (foreground GPS sharing from driver phone)
+  expo-linear-gradient, lucide-react-native (icons)
+  @react-native-async-storage/async-storage (offline session cache)
+  react-native-safe-area-context (notch/gesture-bar safe layout)
+
+INFRASTRUCTURE (docker-compose.yml, 12 services + 1 optional profile)
+  postgis/postgis:15-3.3  - main database (one DB per tenant/school)
+  redis:7-alpine           - cache, login rate limits, revoked tokens
+  rabbitmq:3-management    - Celery message broker
+  cloudflare/cloudflared   - optional "tunnel" profile for a free public URL
+  vercel.json              - deploys the admin dashboard on Vercel (free tier)
+
+--------------------------------------------------------------------------------
+3. SYSTEM ARCHITECTURE
+--------------------------------------------------------------------------------
+  Phone (Expo Go) --\
+                     +--> gateway :8000 --> auth :8001 | fleet :8002
+  Laptop admin  ----/                        routing :8003 | students :8004
+                                                 geo :8005 | tenant :8006
+                                          notifications :8008 | celery worker
+                                                |
+                       postgres+postgis . redis . rabbitmq
+
+Only port 8000 is public. Internal service ports (8001+) are NOT published.
+Host port mapping avoids clashes: Postgres 5433:5432, Redis 6380:6379.
+
+--------------------------------------------------------------------------------
+4. SERVICES AND RESPONSIBILITIES
+--------------------------------------------------------------------------------
+  gateway       :8000  Single public entry. Verifies RS256 JWT, enforces role
+                       scopes per endpoint, enforces tenant-from-token, applies
+                       login/register rate limits, proxies to microservices.
+  auth          :8001  Register/login/refresh/logout, user CRUD, bcrypt
+                       passwords, RS256 tokens, refresh-token revocation.
+                       First-ever user of a fresh tenant becomes admin.
+  fleet         :8002  Vehicles, drivers, maintenance records, report files.
+  routing       :8003  Routes, stops, trips (start/complete), TSP optimizer.
+  students      :8004  Students, attendance marking, ridership records.
+  geo           :8005  GPS ingestion, live positions, geofence enter/exit
+                       alerts, websocket streams.
+  tenant        :8006  Tenant provisioning (CREATE DATABASE per school),
+                       tenant registry kept in Redis.
+  notifications :8008  In-app alerts feed (bell icon in admin dashboard).
+  celery-worker :      Background jobs via RabbitMQ: nearest-neighbor TSP
+                       route optimization, CSV report generation.
+  postgres      :5433  System DB "busly" + one database per tenant
+                       (e.g. tenant_default with schema "busly"). PostGIS on.
+  redis         :6380  Rate-limit counters, revoked refresh tokens,
+                       geofence transition state, tenant registry.
+  rabbitmq      :5672  Celery broker. Management UI on :15672.
+  cloudflared   :      (optional profile) Publishes gateway on a public
+                       https://<random>.trycloudflare.com URL.
+
+--------------------------------------------------------------------------------
+5. FEATURES
+--------------------------------------------------------------------------------
+DRIVER (mobile: Home, Attendance, Vehicle, Profile)
+  - Today's trips list + Pickup/Drop-off trip chips
+  - Start Trip / End Trip buttons
+  - Foreground GPS sharing every ~10s while a trip is in progress
+  - Mark student attendance for the active trip
+  - View assigned vehicle details
+
+PARENT (mobile: Tracking, Children, Profile)
+  - Live map: bus marker, stop pins, route polyline, Live/No-signal pill
+  - Per-child profile cards linked by parent phone number
+  - Day-wise attendance history per child
+
+TEACHER (mobile: Roster, Tracking, Attendance, Profile)
+  - Full class roster grouped by class, live search
+  - Daily roll-call attendance marking
+  - Fleet-wide live tracking map (all routes, all buses)
+
+ADMIN (web dashboard: 12 pages)
+  - Dashboard stats, live map, alerts bell (30s polling)
+  - Vehicles, drivers, routes + stops, students, attendance tables
+  - Route optimizer panel (real TSP), trip reports with CSV download
+  - Global search across entities
+
+--------------------------------------------------------------------------------
+6. ROLES AND PERMISSIONS (enforced at the gateway, not just the UI)
+--------------------------------------------------------------------------------
+  Role      Mobile tabs                              Gateway scopes
+  --------  ---------------------------------------  --------------------------
+  driver    Home, Attendance, Vehicle, Profile       trips, vehicles, students,
+                                                     attendance, gps
+  parent    Tracking, Children, Profile              tracking, students,
+                                                     attendance, gps (read)
+  teacher   Roster, Tracking, Attendance, Profile    students, attendance,
+                                                     tracking
+  admin     Home, Tracking, Roster, Attendance,      everything
+            Vehicle, Profile
+
+Wrong role calling a protected endpoint gets HTTP 403. No token (or a bad
+token) gets HTTP 401. tenant_id always comes from the login token, so one
+school can never read another school's data.
+
+--------------------------------------------------------------------------------
+7. AUTHENTICATION AND SECURITY
+--------------------------------------------------------------------------------
+  - RS256 JWT (private key signs, public key verifies). Keys live in
+    /etc/keys/*.pem and are mounted read-only into containers.
+    Generate with:  sudo ./scripts/gen-keys.sh
+  - Passwords hashed with bcrypt. Accounts can be disabled (403 on login).
+  - Self-register is limited to driver/parent/teacher roles. Admin accounts
+    are created by an existing admin (POST /auth/users, admin-only), except
+    the very first user of a fresh tenant, who bootstraps as admin.
+  - Refresh tokens are revocable: logout stores a hash in Redis and the
+    refresh endpoint rejects revoked tokens.
+  - Rate limits: login 10/min per IP, register 5/5min per IP (HTTP 429).
+  - CORS defaults to "*" (ALLOWED_ORIGINS env) for demo simplicity.
+
+--------------------------------------------------------------------------------
+8. DATA MODEL (key entities, per-tenant database)
+--------------------------------------------------------------------------------
+  users        id, email, password_hash, full_name, phone, roles[], is_active
+  vehicles     id, plate_number, type, make/model, seating_capacity, status
+               (deletes are soft: status='inactive')
+  drivers      id, user link, license_no, experience, status
+  routes       id, name, route_code, start/end points
+  stops        id, route_id, name, landmark, latitude, longitude,
+               stop_order, radius_meters (geofence)
+  students     id, name, student_id, class/section, father/mother phones,
+               route_id, pickup_stop_id
+  trips        id, route_id, vehicle_id, trip_type (pickup/dropoff),
+               scheduled start/end, status (scheduled/in_progress/completed)
+  attendance   id, trip_id/date, student_id, status (present/absent)
+  gps_points   vehicle_id, latitude, longitude, speed, heading, recorded_at
+  geofence_zones id, name, stop link, radius_meters, polygon/circle
+  alerts       id, type (e.g. geofence enter/exit), message, read flag
+
+--------------------------------------------------------------------------------
+9. API ENDPOINTS (all under http://<host>:8000/api/v1 unless noted)
+--------------------------------------------------------------------------------
+  GET  /health, GET /docs, GET /api/v1 (index of all groups)
+  /auth       POST /login, /register, /refresh, /logout; GET /me; PUT /me;
+              POST /users (admin-only user creation)
+  /vehicles   CRUD + DELETE /vehicles/{id} (soft delete)
+  /drivers    CRUD, license/assignment handling
+  /routes     CRUD + POST /routes/{id}/optimize (TSP worker)
+  /stops      CRUD + GET /routes/{id}/stops
+  /trips      list/create + POST /trips/{id}/start + /complete
+  /students   CRUD + link to parent phone / route / stop
+  /attendance mark + per-day history
+  /gps        POST /location (ingest), GET /active (latest per vehicle),
+              history + websocket live stream
+  /alerts     feed + mark-all-read
+  /reports    request generation (Celery CSV) + GET /reports/{id}/file
+  /tenants    tenant info/provisioning
+  /notifications, /analytics, /ridership, /fleet, /maintenance, /geo
+
+--------------------------------------------------------------------------------
+10. DEMO ACCOUNTS (password = role + 123, except admin)
+--------------------------------------------------------------------------------
+  admin@busly.com   / admin123   Admin (web dashboard)
+  driver@busly.com  / driver123  Driver (mobile)
+  teacher@busly.com / teacher123 Teacher (mobile)
+  parent@busly.com  / parent123  Parent (mobile, phone +91 98765 11111)
+
+--------------------------------------------------------------------------------
+11. INSTALLATION AND SETUP (in depth)
+--------------------------------------------------------------------------------
+PREREQUISITES
+  - Docker + Docker Compose, Node.js 22, Python 3
+  - Phone with the Expo Go app (for the mobile demo)
+  - For the LAN-IP phone setup, laptop and phone on the same Wi-Fi
+
+STEP 1 - Get the code
+  git clone https://github.com/abhishek-mule/Busly.git
+  cd Busly
+
+STEP 2 - Backend keys (one time only; back up /etc/keys afterwards)
+  sudo ./scripts/gen-keys.sh
+  # creates /etc/keys/private.pem + public.pem (RS256 JWT signing)
+
+STEP 3 - Start the backend (12 services + optional public tunnel)
+  docker compose --profile tunnel up -d
+  curl localhost:8000/health        # expect {"status":"ok",...}
+  # Public URL (free, no account/card):
+  docker compose logs cloudflared | grep trycloudflare
+  # NOTE: the trycloudflare URL is random and changes whenever the tunnel
+  # container is recreated. Re-check the logs after every `up`.
+
+STEP 4 - Seed demo data (idempotent: only creates what is missing)
+  python3 scripts/demo-seed.py
+  # creates accounts, DEMO-01 bus, Demo Route + 3 stops, 2 linked students,
+  # today's pickup + dropoff trips, and pushes a fresh GPS position.
+  # Re-run every demo morning to refresh trips + live position.
+
+STEP 5 - Admin dashboard
+  cd admin
+  npm install                        # once
+  NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1 npm run dev
+  # open http://localhost:3000/login (dev mode reads the env var at startup;
+  # NEXT_PUBLIC_* values are baked in at build time for production builds)
+
+STEP 6 - Mobile app
+  cd busly-app
+  npm install                        # once
+  # Same Wi-Fi as the laptop:
+  EXPO_PUBLIC_API_URL=http://<laptop-LAN-IP>:8000/api/v1 npx expo start
+  # Different network (phone on mobile data):
+  EXPO_PUBLIC_API_URL=https://<tunnel-url>/api/v1 npx expo start --tunnel
+  # Scan the QR code with Expo Go (Android) or the camera app (iPhone).
+  # Find the LAN IP: Linux `hostname -I`, macOS `ipconfig getifaddr en0`,
+  # Windows `ipconfig` (IPv4 under Wi-Fi). Use the 192.168.x.x address,
+  # never 127.0.0.1. If the QR scan hangs, allow port 8081: sudo ufw allow 8081
+
+STEP 7 - Verify the loop
+  1. Admin login (admin@busly.com / admin123) shows real data.
+  2. Driver login on phone, Start Trip -> Live badge.
+  3. Parent login on phone, Tracking shows the bus on the map.
+
+STOPPING / RESTARTING
+  docker compose ps                  # what is running
+  docker compose logs -f gateway     # follow logs (Ctrl+C to exit)
+  docker compose down                # stop everything
+  # After a reboot just run the `up -d` command again (restart policies
+  # keep everything alive across normal restarts, not reboots).
+  # After changing backend code: docker compose up -d --build <service>
+
+--------------------------------------------------------------------------------
+12. HOW IT WORKS (key request flows)
+--------------------------------------------------------------------------------
+LOGIN
+  App -> POST /api/v1/auth/login {email, password, tenant_id}
+  Auth checks bcrypt hash -> returns access_token (short-lived RS256 JWT
+  carrying user_id, tenant_id, roles) + refresh_token. Every later request
+  sends `Authorization: Bearer <access_token>`; the gateway verifies the
+  signature with the public key and enforces role scopes.
+
+DRIVER TRIP + LIVE GPS
+  Driver taps Start Trip -> POST /trips/{id}/start (status=in_progress).
+  The phone's foreground location watcher POSTs /gps/location every ~10s
+  with vehicle_id + coordinates. Geo service stores the point and checks
+  geofence transitions against the route's stop zones (Redis keeps last
+  inside/outside state) -> crossing the circle posts an enter/exit alert.
+
+PARENT TRACKING
+  Tracking screen loads linked children (students whose father/mother phone
+  matches the parent's phone), their routes, the route's stops, the latest
+  trip, and /gps/active positions. Map centers on stops + bus position,
+  polls GPS every 8s. Pull-to-refresh reloads everything.
+
+ATTENDANCE
+  Driver (per trip) or teacher (roll-call) marks present/absent -> POST
+  /attendance. Parent Children screen and admin attendance page read the
+  per-day history.
+
+ROUTE OPTIMIZATION
+  Admin picks a route -> POST /routes/{id}/optimize enqueues a Celery job ->
+  worker loads the route's stops, runs nearest-neighbor TSP, rewrites
+  stop_order, posts a completion alert. Frontend polls job status.
+
+REPORTS
+  Report request -> Celery generates a real CSV into the shared report_files
+  volume -> GET /reports/{id}/file downloads it (admin falls back to a
+  live-generated CSV if the worker file is missing).
+
+--------------------------------------------------------------------------------
+13. DEMO SCRIPT (5 minutes, one story across four logins)
+--------------------------------------------------------------------------------
+  1. DRIVER (phone): Home shows today's trips -> Start Trip on the morning
+     pickup -> Live badge appears -> Attendance tab, mark 2 students present.
+  2. PARENT (phone): Tracking shows stop pins + route line + moving bus ->
+     Children shows linked kids + attendance history.
+  3. TEACHER (phone): Roster, search a class, take roll-call -> Tracking shows
+     the whole fleet on one map.
+  4. ADMIN (laptop http://localhost:3000): dashboard stats, live map, alerts
+     bell and reports already reflect what just happened on the phones.
+
+Demo-day checklist: backend up (`curl localhost:8000/health`), seed run
+("Demo ready"), admin + phone logins verified, laptop on charger + Wi-Fi,
+Expo QR scanned BEFORE the audience arrives. Backup: a 3-minute screen
+recording (see docs/busly_demo.mp4).
+
+--------------------------------------------------------------------------------
+14. CONFIGURATION (environment variables)
+--------------------------------------------------------------------------------
+  Backend (docker-compose / .env.example):
+    ALLOWED_ORIGINS   CORS origins, default "*" (comma-separated to lock down)
+    (DB/RabbitMQ credentials are the demo defaults in docker-compose.yml;
+     change them for any real deployment.)
+  Admin dashboard:
+    NEXT_PUBLIC_API_URL   e.g. http://localhost:8000/api/v1  (build-time!)
+  Mobile app:
+    EXPO_PUBLIC_API_URL   e.g. http://192.168.1.5:8000/api/v1 (bundle-time!)
+    GOOGLE_MAPS_API_KEY   release APK map tiles (blank map without it)
+    EAS_PROJECT_ID        set by `eas init`
+  Key paths (container): /etc/keys/private.pem + public.pem (read-only mount)
+
+--------------------------------------------------------------------------------
+15. TROUBLESHOOTING
+--------------------------------------------------------------------------------
+  health check fails              -> docker compose up -d
+  "Cannot reach the server"       -> app points at wrong API URL; check env var
+  "Too many login attempts"       -> rate limiter (10/min/IP); wait 60s
+  Admin lists empty               -> hard refresh the browser page
+  Phone cannot reach Metro/API    -> same Wi-Fi + allow port 8081, or --tunnel
+  Tunnel URL dead                 -> it rotated; re-read cloudflared logs
+  429 errors                      -> rate limiter; wait a minute
+  Dark map on phone               -> phone is in dark mode (maps follow theme)
+  Login 401 everywhere            -> rebuild gateway+auth (key mismatch):
+                                     docker compose up -d --build gateway auth-service
+
+--------------------------------------------------------------------------------
+16. SCOPE NOTES (deliberately excluded from this zero-cost MVP)
+--------------------------------------------------------------------------------
+  No AI/LLM features. No push/SMS delivery (in-app alerts only). No online
+  fee payments. No background GPS tracking (foreground only). The backend
+  needs Docker and cannot run on Vercel (serverless); only the admin
+  dashboard is Vercel-compatible (Root Directory = admin).
+
+--------------------------------------------------------------------------------
+17. PROJECT STRUCTURE
+--------------------------------------------------------------------------------
+  Busly/
+    backend/services/   gateway, auth, fleet, routing, students, geo,
+                        tenant, notifications (+ libs/shared, workers/)
+    backend/workers/    Celery: route optimizer (TSP), report CSV writer
+    admin/              Next.js 14 dashboard (src/app/dashboard/*, hooks, lib)
+    busly-app/          Expo SDK 57 app (App.tsx tabs, src/screens/*,
+                        src/context/AuthContext.tsx, src/config/api.ts)
+    parent-app/         legacy (superseded by busly-app)
+    scripts/            gen-keys.sh, demo-seed.py
+    docs/               busly-logo.png, busly_manual.pdf (+ demo video
+                        attached to the v1.0-demo GitHub Release, not in git)
+    docker-compose.yml  12 services + tunnel profile, restart policies
+    vercel.json         admin deploy config (Root Directory approach)
+    LICENSE             (c) 2026 Abhishek Mule, all rights reserved
+
+--------------------------------------------------------------------------------
+18. LICENSE
+--------------------------------------------------------------------------------
+Copyright (c) 2026 Abhishek Mule. All rights reserved. Shared with invited
+collaborators for academic evaluation only (see LICENSE).
+================================================================================
+END OF FILE
+================================================================================
