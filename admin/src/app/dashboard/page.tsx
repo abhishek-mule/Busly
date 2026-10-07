@@ -157,7 +157,7 @@ export default function DashboardPage() {
       href: '/dashboard/vehicles'
     },
     {
-      title: 'Active Drivers',
+      title: 'Active Conductors',
       value: dLoading ? '-' : stats.drivers.active,
       icon: Users,
       color: 'emerald',

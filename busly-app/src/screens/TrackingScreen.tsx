@@ -8,7 +8,6 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
 import {
   Bus,
   Navigation,
@@ -23,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { normalizePhone, relativeFromNow, fmtTime } from '../lib/format';
 import { colors, radius, shadow } from '../theme';
 import ScreenHeader from '../components/ScreenHeader';
+import LiveMap from '../components/LiveMap';
 import { ErrorBanner, EmptyState } from '../components/Feedback';
 
 interface Student {
@@ -187,21 +187,6 @@ export default function TrackingScreen({ mode = 'parent' }: { mode?: 'parent' | 
   const position = trip?.vehicle_id ? positions[trip.vehicle_id] ?? null : null;
   const plate = trip?.vehicle_id ? vehicles[trip.vehicle_id] ?? null : null;
 
-  const region = useMemo(() => {
-    const points: { latitude: number; longitude: number }[] = [
-      ...stops.map((s) => ({ latitude: s.latitude, longitude: s.longitude })),
-      ...(position ? [{ latitude: position.latitude, longitude: position.longitude }] : []),
-    ];
-    if (points.length === 0) return null;
-    const lats = points.map((p) => p.latitude);
-    const lngs = points.map((p) => p.longitude);
-    const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-    const midLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-    const deltaLat = Math.max(Math.max(...lats) - Math.min(...lats), 0.01) * 1.5;
-    const deltaLng = Math.max(Math.max(...lngs) - Math.min(...lngs), 0.01) * 1.5;
-    return { latitude: midLat, longitude: midLng, latitudeDelta: deltaLat, longitudeDelta: deltaLng };
-  }, [stops, position]);
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -274,39 +259,24 @@ export default function TrackingScreen({ mode = 'parent' }: { mode?: 'parent' | 
           ) : null}
 
           <View style={[styles.mapCard, shadow]}>
-            {region ? (
-              <MapView style={styles.map} initialRegion={region} region={undefined}>
-                {stops.map((s) => (
-                  <Marker
-                    key={s.id}
-                    coordinate={{ latitude: s.latitude, longitude: s.longitude }}
-                    title={s.name}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                  >
-                    <View style={styles.stopDot}>
-                      <MapPin size={13} color={colors.primary} strokeWidth={2.6} />
-                    </View>
-                  </Marker>
-                ))}
-                {position ? (
-                  <Marker
-                    coordinate={{ latitude: position.latitude, longitude: position.longitude }}
-                    title={plate ?? 'Bus'}
-                    anchor={{ x: 0.5, y: 0.5 }}
-                  >
-                    <View style={styles.busMarker}>
-                      <Bus size={16} color={colors.white} strokeWidth={2.4} />
-                    </View>
-                  </Marker>
-                ) : null}
-                {stops.length > 1 ? (
-                  <Polyline
-                    coordinates={stops.map((s) => ({ latitude: s.latitude, longitude: s.longitude }))}
-                    strokeColor={colors.primary}
-                    strokeWidth={3}
-                  />
-                ) : null}
-              </MapView>
+            {stops.length > 0 || position ? (
+              <LiveMap
+                stops={stops.map((s) => ({
+                  latitude: s.latitude,
+                  longitude: s.longitude,
+                  name: s.name,
+                  stop_order: s.stop_order,
+                }))}
+                bus={
+                  position
+                    ? {
+                        latitude: position.latitude,
+                        longitude: position.longitude,
+                        label: plate ?? 'Bus',
+                      }
+                    : null
+                }
+              />
             ) : (
               <View style={styles.mapFallback}>
                 <MapPin size={28} color={colors.primary} strokeWidth={1.8} />
@@ -433,7 +403,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.card,
   },
-  map: { height: 260, width: '100%' },
   mapFallback: {
     height: 260,
     alignItems: 'center',
@@ -442,20 +411,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   mapFallbackText: { fontSize: 13, color: colors.textMuted, textAlign: 'center', lineHeight: 19 },
-  stopDot: {
-    backgroundColor: colors.white,
-    borderRadius: 999,
-    padding: 3,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  busMarker: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    padding: 7,
-    borderWidth: 2.5,
-    borderColor: colors.white,
-  },
   card: {
     backgroundColor: colors.card,
     marginHorizontal: 16,

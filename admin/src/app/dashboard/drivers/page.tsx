@@ -46,7 +46,7 @@ export default function DriversPage() {
     : '0.0';
 
   const stats = [
-    { label: 'Total Drivers', value: driverArr.length, icon: Users, color: 'blue' },
+    { label: 'Total Conductors', value: driverArr.length, icon: Users, color: 'blue' },
     { label: 'Active Now', value: driverArr.filter((d: any) => d.status !== 'inactive').length, icon: Car, color: 'green' },
     { label: 'Avg Rating', value: avgRating, icon: Star, color: 'amber' },
   ];
@@ -102,10 +102,10 @@ export default function DriversPage() {
       };
       if (editingItem) {
         await driversAPI.update(editingItem.id, payload);
-        showToast('Driver updated successfully', 'success');
+        showToast('Conductor updated successfully', 'success');
       } else {
         await driversAPI.create(payload);
-        showToast('Driver created successfully', 'success');
+        showToast('Conductor created successfully', 'success');
       }
       setShowModal(false);
       setEditingItem(null);
@@ -123,11 +123,11 @@ export default function DriversPage() {
     setSubmitting(true);
     try {
       await driversAPI.delete(deleteConfirm.id);
-      showToast('Driver deleted successfully', 'success');
+      showToast('Conductor deleted successfully', 'success');
       setDeleteConfirm(null);
       refetch();
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'Failed to delete driver', 'error');
+      showToast(err.response?.data?.message || 'Failed to delete conductor', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -168,15 +168,15 @@ export default function DriversPage() {
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Drivers</h1>
-          <p className="text-slate-500 mt-1">Manage your driver fleet and assignments</p>
+          <h1 className="text-2xl font-bold text-slate-900">Conductors</h1>
+          <p className="text-slate-500 mt-1">Manage conductors and their assignments</p>
         </div>
         <button
           onClick={openAddModal}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20"
         >
           <Plus size={20} />
-          Add Driver
+          Add Conductor
         </button>
       </div>
 
@@ -196,10 +196,10 @@ export default function DriversPage() {
       </div>
 
       {isLoading && (
-        <div className="p-12 text-center text-slate-400">Loading drivers...</div>
+        <div className="p-12 text-center text-slate-400">Loading conductors...</div>
       )}
       {error && (
-        <div className="p-12 text-center text-red-400">Error loading drivers</div>
+        <div className="p-12 text-center text-red-400">Error loading conductors</div>
       )}
       {!isLoading && !error && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -276,12 +276,12 @@ export default function DriversPage() {
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="col-span-full p-12 text-center text-slate-400">No drivers found</div>
+          <div className="col-span-full p-12 text-center text-slate-400">No conductors found</div>
         )}
       </div>
       )}
 
-      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setEditingItem(null); setForm(initialForm); }} title={editingItem ? 'Edit Driver' : 'Add Driver'} size="lg">
+      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setEditingItem(null); setForm(initialForm); }} title={editingItem ? 'Edit Conductor' : 'Add Conductor'} size="lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField label="First Name" name="first_name" value={form.first_name} onChange={handleFormChange} required />
           <FormField label="Last Name" name="last_name" value={form.last_name} onChange={handleFormChange} required />
@@ -312,7 +312,7 @@ export default function DriversPage() {
             className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {submitting && <Loader2 size={18} className="animate-spin" />}
-            {editingItem ? 'Update Driver' : 'Add Driver'}
+            {editingItem ? 'Update Conductor' : 'Add Conductor'}
           </button>
         </div>
       </Modal>
@@ -321,7 +321,7 @@ export default function DriversPage() {
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={handleDelete}
-        title="Delete Driver"
+        title="Delete Conductor"
         message={`Are you sure you want to delete ${deleteConfirm?.first_name || ''} ${deleteConfirm?.last_name || ''}? This action cannot be undone.`}
         confirmText="Delete"
         variant="danger"

@@ -159,7 +159,7 @@ Busly/
 | `Too many login attempts` | Rate limiter (10/min) — wait 60s |
 | Phone can't load the app | Same Wi-Fi, or `expo start --tunnel`; allow port `8081` |
 | Tunnel URL dead | It rotated — read the new one from `cloudflared` logs |
-| Dark map | Phone is in dark mode — Google Maps follows the system theme |
+| Map tiles not loading | Phone needs internet for OpenStreetMap tiles (they're fetched live, no key needed) |
 
 ---
 

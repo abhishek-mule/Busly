@@ -211,7 +211,7 @@ export default function RoutesPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label="Vehicle ID" name="vehicle_id" type="number" value={form.vehicle_id} onChange={handleFormChange} />
-            <FormField label="Driver ID" name="driver_id" type="number" value={form.driver_id} onChange={handleFormChange} />
+            <FormField label="Conductor ID" name="driver_id" type="number" value={form.driver_id} onChange={handleFormChange} />
             <FormField label="Base Fare" name="base_fare" type="number" value={form.base_fare} onChange={handleFormChange} />
           </div>
           <FormField

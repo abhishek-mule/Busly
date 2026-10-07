@@ -150,7 +150,7 @@ export default function MapPage() {
                     </div>
                     <h3 className="text-lg font-bold text-slate-700 mb-1">No live GPS positions yet</h3>
                     <p className="text-sm text-slate-500">
-                      Positions appear here as soon as vehicles push location updates (driver app or <code className="text-xs bg-slate-100 px-1 rounded">POST /api/v1/gps/location</code>).
+                      Positions appear here as soon as vehicles push location updates (conductor app or <code className="text-xs bg-slate-100 px-1 rounded">POST /api/v1/gps/location</code>).
                     </p>
                   </div>
                 </div>
