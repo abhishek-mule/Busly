@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { authAPI } from '@/lib/api';
 
@@ -60,7 +59,7 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4 overflow-hidden">
-            <Image src="/busly.png" alt="Busly" width={56} height={56} priority />
+            <img src="/busly-mascot-logo.svg" alt="Busly" width={56} height={56} />
           </div>
           <h1 className="text-3xl font-bold text-white">Busly</h1>
           <p className="text-indigo-200 mt-2">School Transport Management</p>

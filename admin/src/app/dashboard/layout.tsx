@@ -8,7 +8,6 @@ import {
   FileText, MoreVertical, Gauge, Wifi, WifiOff, CheckCheck
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { alertsAPI, vehiclesAPI, driversAPI, studentsAPI, routesAPI, authAPI } from '@/lib/api';
 
@@ -165,7 +164,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="h-20 flex items-center justify-between px-4 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg shadow-indigo-500/30">
-              <Image src="/busly.png" alt="Busly" width={40} height={40} className="object-cover" />
+              <img src="/busly-mascot-logo.svg" alt="Busly" width={40} height={40} className="object-cover" />
             </div>
             <div className="hidden sm:block">
               <h1 className="text-xl font-bold tracking-tight">Busly</h1>

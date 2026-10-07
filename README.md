@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/busly-logo.png" width="120" alt="Busly logo" />
+<img src="admin/public/busly-mascot-logo.svg" width="120" alt="Busly logo" />
 
 # 🚌 Busly
 

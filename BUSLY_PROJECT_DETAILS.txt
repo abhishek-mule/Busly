@@ -373,8 +373,10 @@ recording (see docs/busly_demo.mp4).
                         src/context/AuthContext.tsx, src/config/api.ts)
     parent-app/         legacy (superseded by busly-app)
     scripts/            gen-keys.sh, demo-seed.py
-    docs/               busly-logo.png, busly_manual.pdf (+ demo video
+    docs/               old busly-logo.png, busly_manual.pdf (+ demo video
                         attached to the v1.0-demo GitHub Release, not in git)
+    admin/public/       busly-mascot-logo.svg = main logo (login, sidebar,
+                        favicon, README); busly.png kept as fallback
     docker-compose.yml  12 services + tunnel profile, restart policies
     vercel.json         admin deploy config (Root Directory approach)
     LICENSE             (c) 2026 Abhishek Mule, all rights reserved

@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Busly - School Transport Management",
   description: "Complete school bus tracking and transportation management system",
-  icons: { icon: "/busly.png" },
+  icons: { icon: "/busly-mascot-logo.svg" },
 };
 
 export default function RootLayout({
