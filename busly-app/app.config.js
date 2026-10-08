@@ -11,11 +11,17 @@ module.exports = {
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {
-      backgroundColor: '#4F46E5',
+      image: './assets/splash.png',
+      resizeMode: 'contain',
+      backgroundColor: '#FFFFFF',
     },
     android: {
       package: 'app.busly.mobile',
       versionCode: 1,
+      adaptiveIcon: {
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#FFFFFF',
+      },
       permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'],
       // A Google Maps key is optional now (only enables extra Google
       // services); map tiles come from OpenStreetMap and need no key.
