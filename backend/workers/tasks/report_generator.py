@@ -42,8 +42,8 @@ def generate_report(self, report_id: str, tenant_id: str, report_type: str) -> d
 
 
 async def _connect(tenant_id: str):
-    from backend.services.tenant.db import _sync_url
-    return await asyncpg.connect(await _sync_url(f"tenant_{tenant_id}"))
+    from backend.services.tenant.db import connect
+    return await connect(f"tenant_{tenant_id}")
 
 
 async def _fetch_report_data(tenant_id: str, report_type: str) -> list[dict]:

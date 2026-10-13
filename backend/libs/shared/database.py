@@ -82,7 +82,10 @@ async def run_migrations(shared_engine_url: str, tenant_db_urls: list[str] | Non
     urls = [shared_engine_url] + (tenant_db_urls or [])
     for url in urls:
         sync_url = url.replace("+asyncpg", "").replace("+psycopg", "")
-        conn = await asyncpg.connect(sync_url)
+        kwargs: dict = {}
+        if "sslmode=require" in sync_url or "ssl=require" in sync_url:
+            kwargs["ssl"] = "require"
+        conn = await asyncpg.connect(sync_url, **kwargs)
         try:
             await conn.execute("CREATE SCHEMA IF NOT EXISTS busly")
         finally:

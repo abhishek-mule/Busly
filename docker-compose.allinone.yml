@@ -1,0 +1,36 @@
+# Local proof of the all-in-one image. Run while the MAIN stack is up
+# (it reuses that stack's postgres/redis over the shared network):
+#   docker compose -f docker-compose.allinone.yml up -d --build
+#   API=http://localhost:8010/api/v1 python3 scripts/demo-seed.py
+# Tear down afterwards: docker compose -f docker-compose.allinone.yml down
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.allinone
+    ports:
+      - "8010:8000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      SHARED_DB_URL: postgresql://busly:password@postgres:5432/busly
+      DB_USER: busly
+      DB_PASSWORD: password
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      ASYNC_PREFIX: postgresql+asyncpg://busly:password@postgres:5432
+      BROKER_URL: redis://redis:6379/0
+      RESULT_BACKEND: redis://redis:6379/0
+      ALLOWED_ORIGINS: "*"
+      BUSLY_AUTH_URL: http://127.0.0.1:8001
+      BUSLY_FLEET_URL: http://127.0.0.1:8002
+      BUSLY_ROUTING_URL: http://127.0.0.1:8003
+      BUSLY_STUDENT_URL: http://127.0.0.1:8004
+      BUSLY_GEO_URL: http://127.0.0.1:8005
+      BUSLY_TENANT_URL: http://127.0.0.1:8006
+      BUSLY_NOTIFICATION_URL: http://127.0.0.1:8008
+    volumes:
+      - /etc/keys:/etc/keys:ro
+      - report_files:/var/busly/reports
+
+volumes:
+  report_files:

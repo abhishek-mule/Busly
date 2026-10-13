@@ -13,3 +13,5 @@ report_files/
 # Demo video stays out of git (36MB) - attached to GitHub Releases instead
 docs/busly_demo.mp4
 *.mp4
+.neon
+.env.local

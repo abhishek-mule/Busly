@@ -27,8 +27,8 @@ def optimize_route(self, route_id: str, tenant_id: str) -> dict:
 
 
 async def _connect(tenant_id: str):
-    from backend.services.tenant.db import _sync_url
-    return await asyncpg.connect(await _sync_url(f"tenant_{tenant_id}"))
+    from backend.services.tenant.db import connect
+    return await connect(f"tenant_{tenant_id}")
 
 
 def _load_stops(route_id: str, tenant_id: str) -> list[dict]:

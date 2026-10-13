@@ -1,5 +1,6 @@
 from typing import TypedDict
 from urllib.parse import parse_qsl, urlencode
+import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 import httpx
@@ -9,6 +10,13 @@ from backend.libs.shared.security import JWTManager
 router = APIRouter()
 
 _verifier: JWTManager | None = None
+
+
+def _svc(name: str, port: int) -> str:
+    # Base URL of an internal microservice. Defaults are the docker-compose
+    # DNS names (existing behavior). For single-container deploys set e.g.
+    # BUSLY_AUTH_URL=http://127.0.0.1:8001 to point at a local process.
+    return os.environ.get(f"BUSLY_{name.upper()}_URL", f"http://{name}-service:{port}")
 
 
 def _get_verifier() -> JWTManager | None:
@@ -30,24 +38,24 @@ class RouteConfig(TypedDict):
 
 
 ROUTE_TABLE: dict[str, RouteConfig] = {
-    "/api/v1/auth": {"target": "http://auth-service:8001", "rate_limit": 100, "auth_required": False, "scopes": []},
-    "/api/v1/vehicles": {"target": "http://fleet-service:8002", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "parent"]},
-    "/api/v1/drivers": {"target": "http://fleet-service:8002", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver"]},
-    "/api/v1/maintenance": {"target": "http://fleet-service:8002", "rate_limit": 60, "auth_required": True, "scopes": ["admin"]},
-    "/api/v1/fleet": {"target": "http://fleet-service:8002", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver"]},
-    "/api/v1/routes": {"target": "http://routing-service:8003", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "teacher", "parent"]},
-    "/api/v1/stops": {"target": "http://routing-service:8003", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "teacher", "parent"]},
-    "/api/v1/trips": {"target": "http://routing-service:8003", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "parent"]},
-    "/api/v1/students": {"target": "http://student-service:8004", "rate_limit": 80, "auth_required": True, "scopes": ["admin", "teacher", "driver", "parent"]},
-    "/api/v1/attendance": {"target": "http://student-service:8004", "rate_limit": 80, "auth_required": True, "scopes": ["admin", "teacher", "driver", "parent"]},
-    "/api/v1/ridership": {"target": "http://student-service:8004", "rate_limit": 80, "auth_required": True, "scopes": ["admin", "driver"]},
-    "/api/v1/gps": {"target": "http://geo-service:8005", "rate_limit": 120, "auth_required": True, "scopes": ["admin", "driver", "parent"]},
-    "/api/v1/geo": {"target": "http://geo-service:8005", "rate_limit": 120, "auth_required": True, "scopes": ["admin", "driver"]},
-    "/api/v1/tenants": {"target": "http://tenant-service:8006", "rate_limit": 20, "auth_required": True, "scopes": ["superadmin"]},
-    "/api/v1/notifications": {"target": "http://notification-service:8008", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "driver"]},
-    "/api/v1/alerts": {"target": "http://notification-service:8008", "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "driver"]},
-    "/api/v1/reports": {"target": "http://fleet-service:8002", "rate_limit": 30, "auth_required": True, "scopes": ["admin"]},
-    "/api/v1/analytics": {"target": "http://fleet-service:8002", "rate_limit": 30, "auth_required": True, "scopes": ["admin"]},
+    "/api/v1/auth": {"target": _svc("auth", 8001), "rate_limit": 100, "auth_required": False, "scopes": []},
+    "/api/v1/vehicles": {"target": _svc("fleet", 8002), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "parent"]},
+    "/api/v1/drivers": {"target": _svc("fleet", 8002), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver"]},
+    "/api/v1/maintenance": {"target": _svc("fleet", 8002), "rate_limit": 60, "auth_required": True, "scopes": ["admin"]},
+    "/api/v1/fleet": {"target": _svc("fleet", 8002), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver"]},
+    "/api/v1/routes": {"target": _svc("routing", 8003), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "teacher", "parent"]},
+    "/api/v1/stops": {"target": _svc("routing", 8003), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "teacher", "parent"]},
+    "/api/v1/trips": {"target": _svc("routing", 8003), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "driver", "parent"]},
+    "/api/v1/students": {"target": _svc("student", 8004), "rate_limit": 80, "auth_required": True, "scopes": ["admin", "teacher", "driver", "parent"]},
+    "/api/v1/attendance": {"target": _svc("student", 8004), "rate_limit": 80, "auth_required": True, "scopes": ["admin", "teacher", "driver", "parent"]},
+    "/api/v1/ridership": {"target": _svc("student", 8004), "rate_limit": 80, "auth_required": True, "scopes": ["admin", "driver"]},
+    "/api/v1/gps": {"target": _svc("geo", 8005), "rate_limit": 120, "auth_required": True, "scopes": ["admin", "driver", "parent"]},
+    "/api/v1/geo": {"target": _svc("geo", 8005), "rate_limit": 120, "auth_required": True, "scopes": ["admin", "driver"]},
+    "/api/v1/tenants": {"target": _svc("tenant", 8006), "rate_limit": 20, "auth_required": True, "scopes": ["superadmin"]},
+    "/api/v1/notifications": {"target": _svc("notification", 8008), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "driver"]},
+    "/api/v1/alerts": {"target": _svc("notification", 8008), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "driver"]},
+    "/api/v1/reports": {"target": _svc("fleet", 8002), "rate_limit": 30, "auth_required": True, "scopes": ["admin"]},
+    "/api/v1/analytics": {"target": _svc("fleet", 8002), "rate_limit": 30, "auth_required": True, "scopes": ["admin"]},
 }
 
 

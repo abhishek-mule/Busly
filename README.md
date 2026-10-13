@@ -1,3 +1,13 @@
+---
+title: Busly API
+emoji: 🚌
+colorFrom: indigo
+colorTo: amber
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 <div align="center">
 
 <img src="admin/public/busly-mascot-logo.svg" width="120" alt="Busly logo" />
@@ -71,7 +81,7 @@ python3 --version
 # On your phone: install "Expo Go" from Play Store / App Store
 ```
 
-> 🪟 **Windows?** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Compose) + [Node.js 22 LTS](https://nodejs.org/) + Python 3, then use the same commands below in PowerShell (`hostname -I` → use `ipconfig` instead).
+> 🪟 **Windows?** Follow the dedicated **[README-WINDOWS.md](README-WINDOWS.md)** instead — it installs everything via WSL2 Ubuntu step-by-step. The one-liner version: [Docker Desktop](https://www.docker.com/products/docker-desktop/) + WSL2-Ubuntu, then the same commands below inside Ubuntu.
 > 🍎 **macOS?** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) + Node.js 22 + Python 3 (via `brew install node@22 python3`), then follow below (`ipconfig getifaddr en0` for the LAN IP).
 
 ### Step 1 — Get the code
@@ -198,6 +208,43 @@ docker compose logs cloudflared-admin | grep trycloudflare
 > ⚠️ Tunnel URLs are random and **rotate on every recreate** — re-check the logs
 > after each `up`, then restart clients with the new URL (it's baked in at start).
 > Your laptop must stay on while anyone uses a tunnel URL.
+
+## ☁️ Free cloud backend (no laptop, no card)
+
+The 12-container stack can't fit free cloud tiers — so the backend also ships
+as **one container** (`backend/Dockerfile.allinone`: gateway + 8 services +
+worker, ~600MB RAM, verified working). Pair it with free managed databases:
+
+| Piece | Free option, no card | Notes |
+|---|---|---|
+| Compute (1 container, port 8000) | Render free (Docker) | 512MB RAM, sleeps after 15min idle (~1min wake), 750h/mo. Tight vs ~600MB need — try as-is, drop the worker if it OOMs. Don't add a payment method: over-limit services just suspend instead of billing. |
+| Full-power alternative (browser only) | GitHub Codespaces + `cloudflared` quick tunnel | 4GB+ RAM runs the whole stack, no local machine, tunnel URL rotates. Free ~60h/mo. |
+| Postgres + PostGIS | Neon free tier | Enable PostGIS once; needs `?sslmode=require`; confirm your role can `CREATE DATABASE` (tenant provisioning) |
+| Redis (cache + Celery broker) | Upstash free tier (persistent) | Use `rediss://` URLs; RabbitMQ is not needed in this mode. Render Key Value free also works but is in-memory-only (wiped on restart, losing the tenant registry) |
+
+> ⚠️ HuggingFace Docker Spaces now require a paid plan (PRO for personal
+> accounts) — only Static Spaces are free, plus up to 2 Gradio Spaces on
+> ZeroGPU for free accounts. Koyeb no longer offers a free tier. So Render
+> (always-on-ish, sleeps) or Codespaces (full power, limited hours) are the
+> current $0/no-card picks.
+
+```bash
+# copy .env.allinone.example, fill in Neon + Upstash + JWT keys, then deploy:
+# image = backend/Dockerfile.allinone, port = 8000, env = your filled file
+```
+
+How it works: gateway targets (`BUSLY_*_URL`) point at localhost processes,
+JWT keys can come from env (`JWT_PRIVATE_KEY`/`JWT_PUBLIC_KEY`) instead of
+files, and Celery rides Redis as its broker. Prove it locally first:
+
+```bash
+docker compose -f docker-compose.allinone.yml up -d --build   # needs main stack up
+API=http://localhost:8010/api/v1 python3 scripts/demo-seed.py
+```
+
+> Honest caveats: free compute sleeps (30–60s cold starts), free DB tiers have
+> caps, and providers can change free plans anytime. For demos the laptop +
+> tunnel setup above remains the most reliable $0 option.
 
 ---
 

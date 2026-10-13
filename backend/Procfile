@@ -1,0 +1,9 @@
+gateway: sh -c 'uvicorn backend.services.gateway.main:app --host 0.0.0.0 --port ${PORT:-8000}'
+auth: uvicorn backend.services.auth.main:app --host 127.0.0.1 --port 8001
+fleet: uvicorn backend.services.fleet.main:app --host 127.0.0.1 --port 8002
+routing: uvicorn backend.services.routing.main:app --host 127.0.0.1 --port 8003
+students: uvicorn backend.services.students.main:app --host 127.0.0.1 --port 8004
+geo: uvicorn backend.services.geo.main:app --host 127.0.0.1 --port 8005
+tenant: uvicorn backend.services.tenant.main:app --host 127.0.0.1 --port 8006
+notifications: uvicorn backend.services.notifications.main:app --host 127.0.0.1 --port 8008
+worker: celery -A backend.workers.celery_app worker --loglevel=warning --concurrency=2

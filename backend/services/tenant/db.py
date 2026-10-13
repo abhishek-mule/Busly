@@ -9,18 +9,40 @@ DB_PASSWORD = os.environ.get("DB_PASSWORD", "password")
 DB_HOST = os.environ.get("DB_HOST", "localhost")
 DB_PORT = os.environ.get("DB_PORT", "5432")
 ASYNC_PREFIX = os.environ.get("ASYNC_PREFIX", "postgresql+asyncpg://busly:password@localhost:5432")
+# Neon and other managed Postgres require SSL. Auto-enable when the host
+# is Neon unless explicitly disabled via DB_SSLMODE=disable.
+_DB_SSLMODE_ENV = os.environ.get("DB_SSLMODE", "")
+if _DB_SSLMODE_ENV:
+    DB_SSLMODE = _DB_SSLMODE_ENV
+else:
+    DB_SSLMODE = "require" if "neon.tech" in DB_HOST else ""
+DB_SSLMODE = DB_SSLMODE
+
+
+def _needs_ssl() -> bool:
+    return DB_SSLMODE == "require"
+
+
+def _connect_kwargs() -> dict:
+    return {"ssl": "require"} if _needs_ssl() else {}
 
 
 async def _sync_url(db_name: str = "") -> str:
-    return f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{db_name or 'busly'}"
+    base = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{db_name or 'busly'}"
+    return base + ("?sslmode=require" if _needs_ssl() else "")
 
 
 def _async_url(db_name: str = "") -> str:
-    return f"{ASYNC_PREFIX}/{db_name}" if db_name else ASYNC_PREFIX
+    base = f"{ASYNC_PREFIX}/{db_name}" if db_name else ASYNC_PREFIX
+    return base + ("?ssl=require" if _needs_ssl() else "")
+
+
+async def connect(db_name: str = ""):
+    return await asyncpg.connect(await _sync_url(db_name), **_connect_kwargs())
 
 
 async def create_tenant_database(tenant_id: str, rotate: bool = False) -> str:
-    conn = await asyncpg.connect(await _sync_url())
+    conn = await connect()
     try:
         db_name = f"tenant_{tenant_id}"
         exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", db_name)
@@ -33,7 +55,7 @@ async def create_tenant_database(tenant_id: str, rotate: bool = False) -> str:
 
 async def run_tenant_migrations(tenant_id: str) -> None:
     db_name = f"tenant_{tenant_id}"
-    conn = await asyncpg.connect(await _sync_url(db_name))
+    conn = await connect(db_name)
     try:
         await conn.execute("CREATE SCHEMA IF NOT EXISTS busly")
         await conn.execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
@@ -47,7 +69,7 @@ async def run_tenant_migrations(tenant_id: str) -> None:
 
 
 async def drop_tenant_database(tenant_id: str) -> None:
-    conn = await asyncpg.connect(await _sync_url())
+    conn = await connect()
     try:
         db_name = f"tenant_{tenant_id}"
         await conn.execute(f'DROP DATABASE IF EXISTS "{db_name}"')

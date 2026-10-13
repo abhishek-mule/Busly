@@ -1,0 +1,22 @@
+# All-in-one image: gateway + 8 microservices + Celery worker in ONE container.
+# For free platforms that give you a single small service (no Compose).
+# The standard multi-container setup (backend/Dockerfile + docker-compose.yml)
+# is unchanged and remains the recommended local path.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt honcho
+
+COPY . /app/backend/
+COPY Procfile /app/Procfile
+COPY allinone-entrypoint.sh /app/allinone-entrypoint.sh
+RUN chmod +x /app/allinone-entrypoint.sh
+
+WORKDIR /app
+ENV PYTHONPATH=/app
+
+EXPOSE 8000
+
+CMD ["/app/allinone-entrypoint.sh"]
