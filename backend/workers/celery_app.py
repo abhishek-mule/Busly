@@ -9,10 +9,16 @@ def _redis_url(url: str) -> str:
     # explicit ?ssl_cert_reqs=... parameter (Upstash and other managed
     # Redis use valid certs, so CERT_REQUIRED is correct). Auto-append it
     # so platform env vars work verbatim. Plain redis:// is untouched.
+    # Strip surrounding whitespace/quotes: dashboard copy-paste often adds
+    # them, and they would otherwise silently break scheme detection.
+    url = (url or "").strip().strip('"').strip("'").strip()
     if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
         sep = "&" if "?" in url else "?"
         return f"{url}{sep}ssl_cert_reqs=CERT_REQUIRED"
     return url
+
+
+print("busly celery_app loaded (rediss normalizer active)", flush=True)
 
 
 celery_app = Celery(
