@@ -21,10 +21,26 @@ def _redis_url(url: str) -> str:
 print("busly celery_app loaded (rediss normalizer active)", flush=True)
 
 
+def _safe_result_backend(url: str) -> str:
+    """Validate the result backend without connecting. A honcho-managed
+    container dies entirely if the worker crashes at startup, so a bad
+    RESULT_BACKEND must degrade to disabled results, never raise."""
+    url = _redis_url(url)
+    try:
+        from celery import Celery as _Celery
+        _Celery("busly-probe", backend=url).backend.as_uri()
+        return url
+    except Exception as exc:
+        print(f"busly: result backend unusable, task results disabled ({exc})", flush=True)
+        return "disabled"
+
+
+_RESULT_BACKEND = _safe_result_backend(os.environ.get("RESULT_BACKEND", "redis://localhost:6379/0"))
+
 celery_app = Celery(
     "busly",
     broker=_redis_url(os.environ.get("BROKER_URL", "amqp://guest:guest@localhost:5672/")),
-    backend=_redis_url(os.environ.get("RESULT_BACKEND", "redis://localhost:6379/0")),
+    backend=_RESULT_BACKEND,
 )
 
 celery_app.conf.update(
@@ -51,6 +67,10 @@ celery_app.conf.update(
         "backend.workers.tasks.sync_processor.*": {"queue": "sync"},
     },
 )
+
+if _RESULT_BACKEND == "disabled":
+    # No result store: don't try to persist STARTED states either.
+    celery_app.conf.task_track_started = False
 
 from backend.workers.tasks import (  # noqa: E402,F401
     notification_sender,
