@@ -1,7 +1,10 @@
 import os
+import re
 
 from celery import Celery
 from kombu import Queue
+
+_INVISIBLE = " \t\r\n\ufeff\u200b\u200c\u200d"
 
 
 def _redis_url(url: str) -> str:
@@ -9,13 +12,26 @@ def _redis_url(url: str) -> str:
     # explicit ?ssl_cert_reqs=... parameter (Upstash and other managed
     # Redis use valid certs, so CERT_REQUIRED is correct). Auto-append it
     # so platform env vars work verbatim. Plain redis:// is untouched.
-    # Strip surrounding whitespace/quotes: dashboard copy-paste often adds
-    # them, and they would otherwise silently break scheme detection.
-    url = (url or "").strip().strip('"').strip("'").strip()
-    if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
-        sep = "&" if "?" in url else "?"
-        return f"{url}{sep}ssl_cert_reqs=CERT_REQUIRED"
-    return url
+    # Dashboard copy-paste often smuggles invisible characters, quotes or
+    # odd casing around the value: parse the scheme defensively instead of
+    # trusting an exact prefix match (a silent mismatch previously let a
+    # bad URL through and crash-looped the whole container).
+    url = (url or "").strip(_INVISIBLE).strip("\"'").strip(_INVISIBLE)
+    m = re.match(r"([A-Za-z][A-Za-z0-9+.-]*)://(.*)$", url, re.DOTALL)
+    if not m:
+        return url
+    scheme, rest = m.group(1).lower(), m.group(2).strip(_INVISIBLE).strip("\"'").strip(_INVISIBLE)
+    if scheme != "rediss":
+        return url
+    clean = f"rediss://{rest}"
+    if "ssl_cert_reqs" not in clean:
+        clean += ("&" if "?" in clean else "?") + "ssl_cert_reqs=CERT_REQUIRED"
+    return clean
+
+
+def _shape(url: str) -> str:
+    m = re.match(r"([A-Za-z][A-Za-z0-9+.-]*)://", (url or "").strip(_INVISIBLE))
+    return f"scheme={m.group(1).lower() if m else '?'} param={'ssl_cert_reqs' in (url or '')} len={len(url or '')}"
 
 
 print("busly celery_app loaded (rediss normalizer active)", flush=True)
@@ -25,6 +41,7 @@ def _safe_result_backend(url: str) -> str:
     """Validate the result backend without connecting. A honcho-managed
     container dies entirely if the worker crashes at startup, so a bad
     RESULT_BACKEND must degrade to disabled results, never raise."""
+    print(f"busly: result backend check {_shape(url)}", flush=True)
     url = _redis_url(url)
     try:
         from celery import Celery as _Celery
