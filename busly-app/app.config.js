@@ -17,7 +17,7 @@ module.exports = {
     },
     android: {
       package: 'app.busly.mobile',
-      versionCode: 2,
+      versionCode: 3,
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
         backgroundColor: '#FFFFFF',
