@@ -26,7 +26,7 @@ PARENT_PHONE = "+91 98765 11111"
 
 ACCOUNTS = [
     ("admin@busly.com", "admin123", "School Admin", ["admin"], ""),
-    ("driver@busly.com", "driver123", "Rajesh Kumar", ["driver"], "+91 98765 43210"),
+    ("conductor@busly.com", "conductor123", "Rajesh Kumar", ["conductor"], "+91 98765 43210"),
     ("teacher@busly.com", "teacher123", "Meera Joshi", ["teacher"], "+91 98765 22222"),
     ("parent@busly.com", "parent123", "Sunita Sharma", ["parent"], PARENT_PHONE),
 ]

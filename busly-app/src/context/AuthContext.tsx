@@ -20,18 +20,18 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  role: 'driver' | 'parent' | 'teacher' | 'admin';
+  role: 'conductor' | 'parent' | 'teacher' | 'admin';
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function resolveRole(user: User | null): 'driver' | 'parent' | 'teacher' | 'admin' {
+function resolveRole(user: User | null): 'conductor' | 'parent' | 'teacher' | 'admin' {
   const roles = user?.roles && user.roles.length ? user.roles : [user?.role ?? ''];
-  const known = ['driver', 'parent', 'teacher', 'admin'];
+  const known = ['conductor', 'parent', 'teacher', 'admin'];
   const match = roles.find((r) => known.includes(r));
-  if (match === 'driver' || match === 'parent' || match === 'teacher') return match;
+  if (match === 'conductor' || match === 'parent' || match === 'teacher') return match;
   return 'admin';
 }
 

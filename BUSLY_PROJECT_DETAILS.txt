@@ -7,7 +7,7 @@ School Transport Management System (live GPS tracking + attendance + fleet)
 1. PROJECT OVERVIEW
 --------------------------------------------------------------------------------
 Busly is a school transport management platform. It tracks school buses live
-on GPS, manages drivers, vehicles, routes, stops and students, records trip
+on GPS, manages conductors, vehicles, routes, stops and students, records trip
 attendance, generates reports, and raises alerts (e.g. geofence entry/exit).
 
 Parts of the system:
@@ -15,7 +15,7 @@ Parts of the system:
                 (Python 3.11, Docker Compose, 12 containers total)
   - Admin     : Next.js 14 web dashboard (TypeScript + Tailwind CSS)
   - Mobile    : One Expo SDK 57 app (React Native) that reshapes itself by role
-                (driver / parent / teacher / admin)
+                (conductor / parent / teacher / admin)
   - Data      : PostgreSQL 15 + PostGIS, Redis 7, RabbitMQ 3
 
 Total cost to run: $0 (self-hosted with Docker + free Cloudflare Tunnel).
@@ -27,7 +27,7 @@ BACKEND (backend/, Python 3.11-slim Docker image)
   fastapi==0.104.1            - async REST API framework (all 9 services)
   uvicorn[standard]==0.24.0   - ASGI server running each service
   sqlalchemy[asyncio]==2.0.23 - async ORM
-  asyncpg==0.29.0             - async Postgres driver
+  asyncpg==0.29.0             - async Postgres conductor
   redis==5.0.1                - caching, sessions, rate limiting, token revoke
   celery==5.3.4               - background workers (route optimizer, reports)
   pydantic==2.5.2             - request/response validation
@@ -48,7 +48,7 @@ MOBILE APP (busly-app/, Expo SDK 57)
   expo ~57.0.0, react 19.2.3, react-native 0.86.3
   @react-navigation/native + bottom-tabs + native-stack (navigation)
   react-native-maps 1.27.2 (live bus map, stop pins, route polyline)
-  expo-location (foreground GPS sharing from driver phone)
+  expo-location (foreground GPS sharing from conductor phone)
   expo-linear-gradient, lucide-react-native (icons)
   @react-native-async-storage/async-storage (offline session cache)
   react-native-safe-area-context (notch/gesture-bar safe layout)
@@ -83,7 +83,7 @@ Host port mapping avoids clashes: Postgres 5433:5432, Redis 6380:6379.
   auth          :8001  Register/login/refresh/logout, user CRUD, bcrypt
                        passwords, RS256 tokens, refresh-token revocation.
                        First-ever user of a fresh tenant becomes admin.
-  fleet         :8002  Vehicles, drivers, maintenance records, report files.
+  fleet         :8002  Vehicles, conductors, maintenance records, report files.
   routing       :8003  Routes, stops, trips (start/complete), TSP optimizer.
   students      :8004  Students, attendance marking, ridership records.
   geo           :8005  GPS ingestion, live positions, geofence enter/exit
@@ -104,7 +104,7 @@ Host port mapping avoids clashes: Postgres 5433:5432, Redis 6380:6379.
 --------------------------------------------------------------------------------
 5. FEATURES
 --------------------------------------------------------------------------------
-DRIVER (mobile: Home, Attendance, Vehicle, Profile)
+CONDUCTOR (mobile: Home, Attendance, Vehicle, Profile)
   - Today's trips list + Pickup/Drop-off trip chips
   - Start Trip / End Trip buttons
   - Foreground GPS sharing every ~10s while a trip is in progress
@@ -123,7 +123,7 @@ TEACHER (mobile: Roster, Tracking, Attendance, Profile)
 
 ADMIN (web dashboard: 12 pages)
   - Dashboard stats, live map, alerts bell (30s polling)
-  - Vehicles, drivers, routes + stops, students, attendance tables
+  - Vehicles, conductors, routes + stops, students, attendance tables
   - Route optimizer panel (real TSP), trip reports with CSV download
   - Global search across entities
 
@@ -132,7 +132,7 @@ ADMIN (web dashboard: 12 pages)
 --------------------------------------------------------------------------------
   Role      Mobile tabs                              Gateway scopes
   --------  ---------------------------------------  --------------------------
-  driver    Home, Attendance, Vehicle, Profile       trips, vehicles, students,
+  conductor    Home, Attendance, Vehicle, Profile       trips, vehicles, students,
                                                      attendance, gps
   parent    Tracking, Children, Profile              tracking, students,
                                                      attendance, gps (read)
@@ -152,7 +152,7 @@ school can never read another school's data.
     /etc/keys/*.pem and are mounted read-only into containers.
     Generate with:  sudo ./scripts/gen-keys.sh
   - Passwords hashed with bcrypt. Accounts can be disabled (403 on login).
-  - Self-register is limited to driver/parent/teacher roles. Admin accounts
+  - Self-register is limited to conductor/parent/teacher roles. Admin accounts
     are created by an existing admin (POST /auth/users, admin-only), except
     the very first user of a fresh tenant, who bootstraps as admin.
   - Refresh tokens are revocable: logout stores a hash in Redis and the
@@ -166,7 +166,7 @@ school can never read another school's data.
   users        id, email, password_hash, full_name, phone, roles[], is_active
   vehicles     id, plate_number, type, make/model, seating_capacity, status
                (deletes are soft: status='inactive')
-  drivers      id, user link, license_no, experience, status
+  conductors      id, user link, license_no, experience, status
   routes       id, name, route_code, start/end points
   stops        id, route_id, name, landmark, latitude, longitude,
                stop_order, radius_meters (geofence)
@@ -186,7 +186,7 @@ school can never read another school's data.
   /auth       POST /login, /register, /refresh, /logout; GET /me; PUT /me;
               POST /users (admin-only user creation)
   /vehicles   CRUD + DELETE /vehicles/{id} (soft delete)
-  /drivers    CRUD, license/assignment handling
+  /conductors    CRUD, license/assignment handling
   /routes     CRUD + POST /routes/{id}/optimize (TSP worker)
   /stops      CRUD + GET /routes/{id}/stops
   /trips      list/create + POST /trips/{id}/start + /complete
@@ -203,7 +203,7 @@ school can never read another school's data.
 10. DEMO ACCOUNTS (password = role + 123, except admin)
 --------------------------------------------------------------------------------
   admin@busly.com   / admin123   Admin (web dashboard)
-  driver@busly.com  / driver123  Driver (mobile)
+  conductor@busly.com  / conductor123  Conductor (mobile)
   teacher@busly.com / teacher123 Teacher (mobile)
   parent@busly.com  / parent123  Parent (mobile, phone +91 98765 11111)
 
@@ -258,7 +258,7 @@ STEP 6 - Mobile app
 
 STEP 7 - Verify the loop
   1. Admin login (admin@busly.com / admin123) shows real data.
-  2. Driver login on phone, Start Trip -> Live badge.
+  2. Conductor login on phone, Start Trip -> Live badge.
   3. Parent login on phone, Tracking shows the bus on the map.
 
 STOPPING / RESTARTING
@@ -279,8 +279,8 @@ LOGIN
   sends `Authorization: Bearer <access_token>`; the gateway verifies the
   signature with the public key and enforces role scopes.
 
-DRIVER TRIP + LIVE GPS
-  Driver taps Start Trip -> POST /trips/{id}/start (status=in_progress).
+CONDUCTOR TRIP + LIVE GPS
+  Conductor taps Start Trip -> POST /trips/{id}/start (status=in_progress).
   The phone's foreground location watcher POSTs /gps/location every ~10s
   with vehicle_id + coordinates. Geo service stores the point and checks
   geofence transitions against the route's stop zones (Redis keeps last
@@ -293,7 +293,7 @@ PARENT TRACKING
   polls GPS every 8s. Pull-to-refresh reloads everything.
 
 ATTENDANCE
-  Driver (per trip) or teacher (roll-call) marks present/absent -> POST
+  Conductor (per trip) or teacher (roll-call) marks present/absent -> POST
   /attendance. Parent Children screen and admin attendance page read the
   per-day history.
 
@@ -310,7 +310,7 @@ REPORTS
 --------------------------------------------------------------------------------
 13. DEMO SCRIPT (5 minutes, one story across four logins)
 --------------------------------------------------------------------------------
-  1. DRIVER (phone): Home shows today's trips -> Start Trip on the morning
+  1. CONDUCTOR (phone): Home shows today's trips -> Start Trip on the morning
      pickup -> Live badge appears -> Attendance tab, mark 2 students present.
   2. PARENT (phone): Tracking shows stop pins + route line + moving bus ->
      Children shows linked kids + attendance history.

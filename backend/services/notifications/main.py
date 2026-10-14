@@ -42,7 +42,7 @@ class AlertCreate(BaseModel):
     title: str
     message: str
     vehicle_id: str = ""
-    driver_id: str = ""
+    conductor_id: str = ""
     student_id: str = ""
     route_id: str = ""
     severity: str = "medium"
@@ -112,10 +112,10 @@ async def list_alerts(tenant_id: str = "default", is_read: str = "", severity: s
 async def create_alert(data: AlertCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(text("""INSERT INTO alerts (tenant_id, alert_type, title, message, vehicle_id, driver_id, student_id, route_id, severity)
+        result = await s.execute(text("""INSERT INTO alerts (tenant_id, alert_type, title, message, vehicle_id, conductor_id, student_id, route_id, severity)
                VALUES (:tid, :at, :title, :msg, NULLIF(:vid, '')::uuid, NULLIF(:did, '')::uuid, NULLIF(:sid, '')::uuid, NULLIF(:rid, '')::uuid, :sev) RETURNING id"""),
             {"tid": tenant_id, "at": data.alert_type, "title": data.title, "msg": data.message,
-             "vid": data.vehicle_id, "did": data.driver_id, "sid": data.student_id,
+             "vid": data.vehicle_id, "did": data.conductor_id, "sid": data.student_id,
              "rid": data.route_id, "sev": data.severity}
         )
         alert_id = str(result.scalar())

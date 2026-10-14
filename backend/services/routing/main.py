@@ -40,7 +40,7 @@ class RouteCreate(BaseModel):
     morning_pickup_time: str = ""
     evening_drop_time: str = ""
     vehicle_id: str = ""
-    driver_id: str = ""
+    conductor_id: str = ""
     base_fare: float = 0
 
 
@@ -53,7 +53,7 @@ class RouteUpdate(BaseModel):
     direction: str = ""
     status: str = ""
     vehicle_id: str = ""
-    driver_id: str = ""
+    conductor_id: str = ""
 
 
 class StopCreate(BaseModel):
@@ -81,7 +81,7 @@ class StopUpdate(BaseModel):
 class TripCreate(BaseModel):
     route_id: str
     vehicle_id: str = ""
-    driver_id: str = ""
+    conductor_id: str = ""
     trip_type: str = "pickup"
     scheduled_start_time: str = ""
     scheduled_end_time: str = ""
@@ -105,12 +105,12 @@ async def create_route(data: RouteCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
         result = await s.execute(text("""INSERT INTO routes (tenant_id, name, route_code, description, start_point, end_point, direction,
-               morning_pickup_time, evening_drop_time, vehicle_id, driver_id, base_fare)
+               morning_pickup_time, evening_drop_time, vehicle_id, conductor_id, base_fare)
                VALUES (:tid, :name, :rc, :desc, :sp, :ep, :dir, NULLIF(:mpt, '')::time, NULLIF(:edt, '')::time, NULLIF(:vid, '')::uuid, NULLIF(:did, '')::uuid, :bf) RETURNING id"""),
             {"tid": tenant_id, "name": data.name, "rc": data.route_code, "desc": data.description,
              "sp": data.start_point, "ep": data.end_point, "dir": data.direction,
              "mpt": nullable(data.morning_pickup_time), "edt": nullable(data.evening_drop_time),
-             "vid": nullable(data.vehicle_id), "did": nullable(data.driver_id), "bf": data.base_fare}
+             "vid": nullable(data.vehicle_id), "did": nullable(data.conductor_id), "bf": data.base_fare}
         )
         route_id = str(result.scalar())
         await s.commit()
@@ -154,7 +154,7 @@ async def update_route(route_id: str, data: RouteUpdate, tenant_id: str = "defau
     async for s in session:
         fields = []
         params = {"id": route_id, "tid": tenant_id}
-        casts = {"vehicle_id": "uuid", "driver_id": "uuid"}
+        casts = {"vehicle_id": "uuid", "conductor_id": "uuid"}
         for key, value in data.model_dump(exclude_unset=True).items():
             if value is not None and value != "":
                 fields.append(f"{key} = " + (f"NULLIF(:{key}, '')::{casts[key]}" if key in casts else f":{key}"))
@@ -343,9 +343,9 @@ async def list_trips(tenant_id: str = "default", status: str = "", date: str = "
 async def create_trip(data: TripCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(text("""INSERT INTO trips (tenant_id, route_id, vehicle_id, driver_id, trip_type, scheduled_start_time, scheduled_end_time, notes)
+        result = await s.execute(text("""INSERT INTO trips (tenant_id, route_id, vehicle_id, conductor_id, trip_type, scheduled_start_time, scheduled_end_time, notes)
                VALUES (:tid, NULLIF(:rid, '')::uuid, NULLIF(:vid, '')::uuid, NULLIF(:did, '')::uuid, :tt, NULLIF(:sst, '')::timestamptz, NULLIF(:set, '')::timestamptz, :notes) RETURNING id"""),
-            {"tid": tenant_id, "rid": nullable(data.route_id), "vid": nullable(data.vehicle_id), "did": nullable(data.driver_id),
+            {"tid": tenant_id, "rid": nullable(data.route_id), "vid": nullable(data.vehicle_id), "did": nullable(data.conductor_id),
              "tt": data.trip_type, "sst": nullable(data.scheduled_start_time), "set": nullable(data.scheduled_end_time), "notes": data.notes}
         )
         trip_id = str(result.scalar())

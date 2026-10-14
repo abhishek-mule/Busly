@@ -50,7 +50,7 @@ class RegisterRequest(BaseModel):
     password: str
     full_name: str
     phone: str = ""
-    roles: list[str] = ["driver"]
+    roles: list[str] = ["conductor"]
 
 
 class CreateUserRequest(BaseModel):
@@ -59,15 +59,15 @@ class CreateUserRequest(BaseModel):
     password: str
     full_name: str
     phone: str = ""
-    roles: list[str] = ["driver"]
+    roles: list[str] = ["conductor"]
 
 
 class LogoutRequest(BaseModel):
     refresh_token: str = ""
 
 
-SELF_REGISTER_ROLES = {"driver", "parent", "teacher"}
-ALL_ROLES = {"driver", "parent", "teacher", "admin", "superadmin"}
+SELF_REGISTER_ROLES = {"conductor", "parent", "teacher"}
+ALL_ROLES = {"conductor", "parent", "teacher", "admin", "superadmin"}
 
 
 def _check_rate_limit(key: str, limit: int, window: int):
@@ -141,7 +141,7 @@ async def health():
 @app.post("/auth/register", response_model=TokenResponse)
 async def register(data: RegisterRequest, request: Request):
     await _check_rate_limit("register", 5, 300)(request)
-    requested = data.roles or ["driver"]
+    requested = data.roles or ["conductor"]
     try:
         session = session_factory.get_session(data.tenant_id)
     except ValueError:
@@ -155,7 +155,7 @@ async def register(data: RegisterRequest, request: Request):
         else:
             roles = requested
             if not set(roles) <= SELF_REGISTER_ROLES:
-                raise HTTPException(status_code=403, detail={"code": "ROLE_NOT_ALLOWED", "message": "Self-registration is limited to driver, parent and teacher accounts"})
+                raise HTTPException(status_code=403, detail={"code": "ROLE_NOT_ALLOWED", "message": "Self-registration is limited to conductor, parent and teacher accounts"})
         existing = await s.execute(text("SELECT id FROM users WHERE email = :email AND tenant_id = :tid"), {"email": data.email, "tid": data.tenant_id})
         if existing.scalar():
             raise HTTPException(status_code=409, detail={"code": "EMAIL_EXISTS", "message": "User already exists"})
@@ -176,7 +176,7 @@ async def create_user(data: CreateUserRequest, current_user: dict = Depends(get_
     """Admin-only user creation (any role, including admin)."""
     if "admin" not in (current_user.get("roles") or []) and "superadmin" not in (current_user.get("roles") or []):
         raise HTTPException(status_code=403, detail={"code": "FORBIDDEN", "message": "Admin access required"})
-    roles = data.roles or ["driver"]
+    roles = data.roles or ["conductor"]
     if not set(roles) <= ALL_ROLES:
         raise HTTPException(status_code=422, detail={"code": "INVALID_ROLE", "message": f"Unknown role. Allowed: {sorted(ALL_ROLES)}"})
     tenant_id = current_user["tenant_id"]

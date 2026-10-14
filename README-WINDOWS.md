@@ -141,14 +141,14 @@ npm install   # first time only
 EXPO_PUBLIC_API_URL=https://<your-tunnel-url>/api/v1 npx expo start --tunnel
 ```
 
-Scan the QR with Expo Go → `driver@busly.com` / `driver123`.
+Scan the QR with Expo Go → `conductor@busly.com` / `conductor123`.
 (Bundle loads via Expo's tunnel, API calls go via your Cloudflare tunnel.)
 
 ## Step 7 — Verify ✅
 
 1. `curl localhost:8000/health` (Ubuntu) → `{"status":"ok",...}`
 2. Admin login in Windows browser → real data shows
-3. Phone: driver → Home → **Start Trip** → Live badge 🟢
+3. Phone: conductor → Home → **Start Trip** → Live badge 🟢
 4. Phone: parent (`parent@busly.com` / `parent123`) → Tracking → bus on map 🗺️
 
 ---

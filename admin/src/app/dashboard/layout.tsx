@@ -9,12 +9,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { alertsAPI, vehiclesAPI, driversAPI, studentsAPI, routesAPI, authAPI } from '@/lib/api';
+import { alertsAPI, vehiclesAPI, conductorsAPI, studentsAPI, routesAPI, authAPI } from '@/lib/api';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', color: '#6366f1' },
   { href: '/dashboard/vehicles', icon: Bus, label: 'Vehicles', color: '#3b82f6' },
-  { href: '/dashboard/drivers', icon: Users, label: 'Conductors', color: '#10b981' },
+  { href: '/dashboard/conductors', icon: Users, label: 'Conductors', color: '#10b981' },
   { href: '/dashboard/routes', icon: MapPin, label: 'Routes', color: '#f59e0b' },
   { href: '/dashboard/students', icon: GraduationCap, label: 'Students', color: '#8b5cf6' },
   { href: '/dashboard/stops', icon: MapPin, label: 'Stops', color: '#ec4899' },
@@ -92,13 +92,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     try {
       const [v, d, s, r] = await Promise.all([
         vehiclesAPI.list({ limit: 100 }),
-        driversAPI.list({ limit: 100 }),
+        conductorsAPI.list({ limit: 100 }),
         studentsAPI.list({ limit: 100 }),
         routesAPI.list({ limit: 100 }),
       ]);
       const idx = [
         ...unwrap(v).map((x: any) => ({ type: 'Vehicle', label: x.plate_number || x.id, sub: x.vehicle_type || '', href: '/dashboard/vehicles', q: x.plate_number || '' })),
-        ...unwrap(d).map((x: any) => ({ type: 'Conductor', label: x.full_name || x.name || x.id, sub: x.phone || '', href: '/dashboard/drivers', q: x.full_name || x.name || '' })),
+        ...unwrap(d).map((x: any) => ({ type: 'Conductor', label: x.full_name || x.name || x.id, sub: x.phone || '', href: '/dashboard/conductors', q: x.full_name || x.name || '' })),
         ...unwrap(s).map((x: any) => ({ type: 'Student', label: `${x.first_name || ''} ${x.last_name || ''}`.trim() || x.id, sub: x.class_name || '', href: '/dashboard/students', q: x.first_name || '' })),
         ...unwrap(r).map((x: any) => ({ type: 'Route', label: x.name || x.id, sub: x.route_code || '', href: '/dashboard/routes', q: x.name || '' })),
       ];

@@ -58,7 +58,7 @@ echo " Phone app (Expo Go, any network):"
 echo "   cd busly-app && EXPO_PUBLIC_API_URL=$API_URL/api/v1 npx expo start --tunnel"
 echo
 echo "--- logins ---"
-echo " admin@busly.com / admin123 | driver@busly.com / driver123"
+echo " admin@busly.com / admin123 | conductor@busly.com / conductor123"
 echo " teacher@busly.com / teacher123 | parent@busly.com / parent123"
 echo "=========================================================="
 echo "NOTE: tunnel URLs rotate when containers recreate. Re-run this"

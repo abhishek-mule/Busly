@@ -4,7 +4,7 @@ export interface Trip {
   id: string;
   route_id: string;
   vehicle_id: string;
-  driver_id: string | null;
+  conductor_id: string | null;
   trip_type: string;
   status: string;
   scheduled_start_time: string;
@@ -68,14 +68,14 @@ export const vehiclesAPI = {
   maintenance: (id: string) => api.get(`/vehicles/${id}/maintenance`),
 };
 
-export const driversAPI = {
-  list: (params?: any) => api.get('/drivers', { params }),
-  get: (id: string) => api.get(`/drivers/${id}`),
-  create: (data: any) => api.post('/drivers', data),
-  update: (id: string, data: any) => api.put(`/drivers/${id}`, data),
-  delete: (id: string) => api.delete(`/drivers/${id}`),
-  routes: (id: string) => api.get(`/drivers/${id}/routes`),
-  attendance: (id: string, params?: any) => api.get(`/drivers/${id}/attendance`, { params }),
+export const conductorsAPI = {
+  list: (params?: any) => api.get('/conductors', { params }),
+  get: (id: string) => api.get(`/conductors/${id}`),
+  create: (data: any) => api.post('/conductors', data),
+  update: (id: string, data: any) => api.put(`/conductors/${id}`, data),
+  delete: (id: string) => api.delete(`/conductors/${id}`),
+  routes: (id: string) => api.get(`/conductors/${id}/routes`),
+  attendance: (id: string, params?: any) => api.get(`/conductors/${id}/attendance`, { params }),
 };
 
 export const routesAPI = {

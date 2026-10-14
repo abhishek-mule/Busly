@@ -56,7 +56,7 @@ class VehicleUpdate(BaseModel):
     is_available: bool = True
 
 
-class DriverCreate(BaseModel):
+class ConductorCreate(BaseModel):
     user_id: str = ""
     license_number: str
     license_type: str = ""
@@ -66,7 +66,7 @@ class DriverCreate(BaseModel):
     city: str = ""
 
 
-class DriverUpdate(BaseModel):
+class ConductorUpdate(BaseModel):
     license_number: str = ""
     license_type: str = ""
     license_expiry: str = ""
@@ -174,22 +174,22 @@ async def vehicle_maintenance_history(vehicle_id: str, tenant_id: str = "default
         return {"items": [dict(r._mapping) for r in rows], "vehicle_id": vehicle_id}
 
 
-@app.post("/drivers")
-async def create_driver(data: DriverCreate, tenant_id: str = "default"):
+@app.post("/conductors")
+async def create_conductor(data: ConductorCreate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(text("""INSERT INTO drivers (tenant_id, user_id, license_number, license_type, license_expiry, phone, address, city)
+        result = await s.execute(text("""INSERT INTO conductors (tenant_id, user_id, license_number, license_type, license_expiry, phone, address, city)
                VALUES (:tid, NULLIF(:uid, '')::uuid, :ln, :lt, NULLIF(:le, '')::date, :ph, :addr, :city) RETURNING id"""),
             {"tid": tenant_id, "uid": nullable(data.user_id), "ln": data.license_number, "lt": data.license_type,
              "le": nullable(data.license_expiry), "ph": data.phone, "addr": data.address, "city": data.city}
         )
-        driver_id = str(result.scalar())
+        conductor_id = str(result.scalar())
         await s.commit()
-        return {"id": driver_id, "status": "created"}
+        return {"id": conductor_id, "status": "created"}
 
 
-@app.get("/drivers")
-async def list_drivers(tenant_id: str = "default", status: str = "", page: int = 1, limit: int = 20):
+@app.get("/conductors")
+async def list_conductors(tenant_id: str = "default", status: str = "", page: int = 1, limit: int = 20):
     session = session_factory.get_session(tenant_id)
     async for s in session:
         where = "WHERE tenant_id = :tid"
@@ -197,65 +197,65 @@ async def list_drivers(tenant_id: str = "default", status: str = "", page: int =
         if status:
             where += " AND status = :status"
             params["status"] = status
-        total = await s.execute(text(f"SELECT COUNT(*) FROM drivers {where}"), params)
+        total = await s.execute(text(f"SELECT COUNT(*) FROM conductors {where}"), params)
         total_count = total.scalar()
         offset = (page - 1) * limit
-        result = await s.execute(text(f"SELECT * FROM drivers {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"),
+        result = await s.execute(text(f"SELECT * FROM conductors {where} ORDER BY created_at DESC LIMIT :limit OFFSET :offset"),
             {**params, "limit": limit, "offset": offset}
         )
         rows = result.fetchall()
-        drivers = [dict(r._mapping) for r in rows]
-        return {"items": drivers, "total": total_count, "page": page, "page_size": limit}
+        conductors = [dict(r._mapping) for r in rows]
+        return {"items": conductors, "total": total_count, "page": page, "page_size": limit}
 
 
-@app.get("/drivers/{driver_id}")
-async def get_driver(driver_id: str, tenant_id: str = "default"):
+@app.get("/conductors/{conductor_id}")
+async def get_conductor(conductor_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(text("SELECT * FROM drivers WHERE id = :id AND tenant_id = :tid"), {"id": driver_id, "tid": tenant_id})
+        result = await s.execute(text("SELECT * FROM conductors WHERE id = :id AND tenant_id = :tid"), {"id": conductor_id, "tid": tenant_id})
         row = result.fetchone()
         if not row:
-            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Driver not found"})
+            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Conductor not found"})
         return dict(row._mapping)
 
 
-@app.put("/drivers/{driver_id}")
-async def update_driver(driver_id: str, data: DriverUpdate, tenant_id: str = "default"):
+@app.put("/conductors/{conductor_id}")
+async def update_conductor(conductor_id: str, data: ConductorUpdate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
         fields = []
-        params = {"id": driver_id, "tid": tenant_id}
+        params = {"id": conductor_id, "tid": tenant_id}
         casts = {"license_expiry": "date"}
         for key, value in data.model_dump(exclude_unset=True).items():
             if value is not None and value != "":
                 fields.append(f"{key} = " + (f"NULLIF(:{key}, '')::{casts[key]}" if key in casts else f":{key}"))
                 params[key] = value
         if fields:
-            await s.execute(text(f"UPDATE drivers SET {', '.join(fields)} WHERE id = :id AND tenant_id = :tid"), params)
+            await s.execute(text(f"UPDATE conductors SET {', '.join(fields)} WHERE id = :id AND tenant_id = :tid"), params)
             await s.commit()
-        result = await s.execute(text("SELECT * FROM drivers WHERE id = :id AND tenant_id = :tid"), {"id": driver_id, "tid": tenant_id})
+        result = await s.execute(text("SELECT * FROM conductors WHERE id = :id AND tenant_id = :tid"), {"id": conductor_id, "tid": tenant_id})
         row = result.fetchone()
         return dict(row._mapping)
 
 
-@app.delete("/drivers/{driver_id}")
-async def delete_driver(driver_id: str, tenant_id: str = "default"):
+@app.delete("/conductors/{conductor_id}")
+async def delete_conductor(conductor_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        await s.execute(text("UPDATE drivers SET status = 'inactive' WHERE id = :id AND tenant_id = :tid"), {"id": driver_id, "tid": tenant_id})
+        await s.execute(text("UPDATE conductors SET status = 'inactive' WHERE id = :id AND tenant_id = :tid"), {"id": conductor_id, "tid": tenant_id})
         await s.commit()
         return {"status": "deleted"}
 
 
-@app.get("/drivers/{driver_id}/routes")
-async def driver_routes(driver_id: str, tenant_id: str = "default"):
+@app.get("/conductors/{conductor_id}/routes")
+async def conductor_routes(conductor_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(text("SELECT * FROM routes WHERE driver_id = :did AND tenant_id = :tid AND status = 'active'"),
-            {"did": driver_id, "tid": tenant_id}
+        result = await s.execute(text("SELECT * FROM routes WHERE conductor_id = :did AND tenant_id = :tid AND status = 'active'"),
+            {"did": conductor_id, "tid": tenant_id}
         )
         rows = result.fetchall()
-        return {"items": [dict(r._mapping) for r in rows], "driver_id": driver_id}
+        return {"items": [dict(r._mapping) for r in rows], "conductor_id": conductor_id}
 
 
 @app.post("/maintenance/schedule")
@@ -289,7 +289,7 @@ async def analytics_dashboard(tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
         vehicles = (await s.execute(text("SELECT COUNT(*) FROM vehicles WHERE tenant_id = :tid AND status = 'active'"), {"tid": tenant_id})).scalar()
-        drivers = (await s.execute(text("SELECT COUNT(*) FROM drivers WHERE tenant_id = :tid AND status = 'available'"), {"tid": tenant_id})).scalar()
+        conductors = (await s.execute(text("SELECT COUNT(*) FROM conductors WHERE tenant_id = :tid AND status = 'available'"), {"tid": tenant_id})).scalar()
         students = (await s.execute(text("SELECT COUNT(*) FROM students WHERE tenant_id = :tid AND status = 'active'"), {"tid": tenant_id})).scalar()
         routes = (await s.execute(text("SELECT COUNT(*) FROM routes WHERE tenant_id = :tid AND status = 'active'"), {"tid": tenant_id})).scalar()
         trips_today = (await s.execute(text("SELECT COUNT(*) FROM trips WHERE tenant_id = :tid AND DATE(scheduled_start_time) = CURRENT_DATE"),
@@ -298,7 +298,7 @@ async def analytics_dashboard(tenant_id: str = "default"):
         return {
             "total_vehicles": vehicles,
             "active_vehicles": vehicles,
-            "total_drivers": drivers,
+            "total_conductors": conductors,
             "total_students": students,
             "total_routes": routes,
             "trips_today": trips_today,
@@ -316,17 +316,17 @@ async def vehicle_maintenance(vehicle_id: str, tenant_id: str = "default"):
         return {"items": [dict(r._mapping) for r in rows], "vehicle_id": vehicle_id}
 
 
-@app.get("/drivers/{driver_id}/attendance")
-async def driver_attendance(driver_id: str, tenant_id: str = "default"):
+@app.get("/conductors/{conductor_id}/attendance")
+async def conductor_attendance(conductor_id: str, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)
     async for s in session:
-        result = await s.execute(text("""SELECT DISTINCT ON (a.date) a.*, t.driver_id
+        result = await s.execute(text("""SELECT DISTINCT ON (a.date) a.*, t.conductor_id
                 FROM attendance a JOIN trips t ON a.trip_id = t.id
-                WHERE t.driver_id = :did AND a.tenant_id = :tid ORDER BY a.date DESC LIMIT 90"""),
-            {"did": driver_id, "tid": tenant_id}
+                WHERE t.conductor_id = :did AND a.tenant_id = :tid ORDER BY a.date DESC LIMIT 90"""),
+            {"did": conductor_id, "tid": tenant_id}
         )
         rows = result.fetchall()
-        return {"items": [dict(r._mapping) for r in rows], "driver_id": driver_id}
+        return {"items": [dict(r._mapping) for r in rows], "conductor_id": conductor_id}
 
 
 class ReportCreate(BaseModel):

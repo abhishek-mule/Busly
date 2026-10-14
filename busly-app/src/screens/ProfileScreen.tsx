@@ -33,7 +33,7 @@ export default function ProfileScreen() {
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState(false);
 
-  const name = user?.full_name || 'Driver';
+  const name = user?.full_name || 'Conductor';
   const initials = name
     .split(' ')
     .map((p) => p[0])
@@ -41,7 +41,7 @@ export default function ProfileScreen() {
     .slice(0, 2)
     .join('')
     .toUpperCase();
-  const role = (user?.roles && user.roles[0]) || user?.role || 'driver';
+  const role = (user?.roles && user.roles[0]) || user?.role || 'conductor';
 
   const confirmLogout = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [

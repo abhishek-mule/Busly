@@ -38,7 +38,7 @@ const icons = {
   Profile: User,
 } as const;
 
-type Role = 'driver' | 'parent' | 'teacher' | 'admin';
+type Role = 'conductor' | 'parent' | 'teacher' | 'admin';
 
 // Every tab screen renders inside the safe area (below notch/status bar).
 // The bottom tab bar adds its own bottom inset from the same provider.
@@ -57,8 +57,8 @@ const SafeVehicleScreen = withScreen(VehicleScreen);
 const SafeRosterScreen = withScreen(RosterScreen);
 const SafeChildrenScreen = withScreen(ChildrenScreen);
 const SafeProfileScreen = withScreen(ProfileScreen);
-const DriverAttendanceScreen = withScreen((props: any) => (
-  <AttendanceScreen {...props} mode="driver" />
+const ConductorAttendanceScreen = withScreen((props: any) => (
+  <AttendanceScreen {...props} mode="conductor" />
 ));
 const TeacherAttendanceScreen = withScreen((props: any) => (
   <AttendanceScreen {...props} mode="teacher" />
@@ -71,7 +71,7 @@ const FleetTrackingScreen = withScreen((props: any) => (
 ));
 
 const TABS: Record<Role, { name: string; label: string }[]> = {
-  driver: [
+  conductor: [
     { name: 'Home', label: 'Home' },
     { name: 'Attendance', label: 'Attendance' },
     { name: 'Vehicle', label: 'Vehicle' },
@@ -131,7 +131,7 @@ function MainTabs({ role }: { role: Role }) {
       {tabs.map(({ name, label }) => {
         let component = SCREENS[name] ?? SafeProfileScreen;
         if (name === 'Attendance')
-          component = role === 'driver' ? DriverAttendanceScreen : TeacherAttendanceScreen;
+          component = role === 'conductor' ? ConductorAttendanceScreen : TeacherAttendanceScreen;
         if (name === 'Tracking')
           component = role === 'parent' ? ParentTrackingScreen : FleetTrackingScreen;
         return (

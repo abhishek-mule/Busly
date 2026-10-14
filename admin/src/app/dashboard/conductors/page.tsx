@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useDrivers } from '@/hooks/useBusly';
-import { driversAPI } from '@/lib/api';
+import { useConductors } from '@/hooks/useBusly';
+import { conductorsAPI } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -21,8 +21,8 @@ const initialForm = {
   vehicle_id: '',
 };
 
-export default function DriversPage() {
-  const { data: drivers, isLoading, error, refetch } = useDrivers();
+export default function ConductorsPage() {
+  const { data: conductors, isLoading, error, refetch } = useConductors();
   const [searchTerm, setSearchTerm] = useState('');
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('q');
@@ -35,19 +35,19 @@ export default function DriversPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' }>({ show: false, message: '', type: 'success' });
 
-  const driverArr = Array.isArray(drivers) ? drivers : [];
+  const conductorArr = Array.isArray(conductors) ? conductors : [];
 
-  const filtered = driverArr.filter((d: any) =>
+  const filtered = conductorArr.filter((d: any) =>
     !searchTerm || d.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) || d.phone?.includes(searchTerm)
   );
 
-  const avgRating = driverArr.length
-    ? (driverArr.reduce((s: number, d: any) => s + (d.rating || 0), 0) / driverArr.length).toFixed(1)
+  const avgRating = conductorArr.length
+    ? (conductorArr.reduce((s: number, d: any) => s + (d.rating || 0), 0) / conductorArr.length).toFixed(1)
     : '0.0';
 
   const stats = [
-    { label: 'Total Conductors', value: driverArr.length, icon: Users, color: 'blue' },
-    { label: 'Active Now', value: driverArr.filter((d: any) => d.status !== 'inactive').length, icon: Car, color: 'green' },
+    { label: 'Total Conductors', value: conductorArr.length, icon: Users, color: 'blue' },
+    { label: 'Active Now', value: conductorArr.filter((d: any) => d.status !== 'inactive').length, icon: Car, color: 'green' },
     { label: 'Avg Rating', value: avgRating, icon: Star, color: 'amber' },
   ];
 
@@ -72,19 +72,19 @@ export default function DriversPage() {
     setShowModal(true);
   };
 
-  const openEditModal = (driver: any) => {
-    setEditingItem(driver);
+  const openEditModal = (conductor: any) => {
+    setEditingItem(conductor);
     setForm({
-      first_name: driver.first_name || '',
-      last_name: driver.last_name || '',
-      phone: driver.phone || '',
-      email: driver.email || '',
-      license_number: driver.license_number || '',
-      license_expiry: driver.license_expiry ? driver.license_expiry.slice(0, 10) : '',
-      status: driver.status || 'active',
-      address: driver.address || '',
-      city: driver.city || '',
-      vehicle_id: driver.vehicle_id ? String(driver.vehicle_id) : '',
+      first_name: conductor.first_name || '',
+      last_name: conductor.last_name || '',
+      phone: conductor.phone || '',
+      email: conductor.email || '',
+      license_number: conductor.license_number || '',
+      license_expiry: conductor.license_expiry ? conductor.license_expiry.slice(0, 10) : '',
+      status: conductor.status || 'active',
+      address: conductor.address || '',
+      city: conductor.city || '',
+      vehicle_id: conductor.vehicle_id ? String(conductor.vehicle_id) : '',
     });
     setShowModal(true);
   };
@@ -101,10 +101,10 @@ export default function DriversPage() {
         vehicle_id: form.vehicle_id ? form.vehicle_id : null,
       };
       if (editingItem) {
-        await driversAPI.update(editingItem.id, payload);
+        await conductorsAPI.update(editingItem.id, payload);
         showToast('Conductor updated successfully', 'success');
       } else {
-        await driversAPI.create(payload);
+        await conductorsAPI.create(payload);
         showToast('Conductor created successfully', 'success');
       }
       setShowModal(false);
@@ -122,7 +122,7 @@ export default function DriversPage() {
     if (!deleteConfirm) return;
     setSubmitting(true);
     try {
-      await driversAPI.delete(deleteConfirm.id);
+      await conductorsAPI.delete(deleteConfirm.id);
       showToast('Conductor deleted successfully', 'success');
       setDeleteConfirm(null);
       refetch();
@@ -203,20 +203,20 @@ export default function DriversPage() {
       )}
       {!isLoading && !error && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((driver: any) => (
-          <div key={driver.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300">
+        {filtered.map((conductor: any) => (
+          <div key={conductor.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-indigo-500/30">
-                  {(driver.first_name || '?')[0]}{(driver.last_name || '')[0]}
+                  {(conductor.first_name || '?')[0]}{(conductor.last_name || '')[0]}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-slate-900 text-lg">{driver.first_name} {driver.last_name || ''}</h3>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(driver.status)}`}>
+                  <h3 className="font-semibold text-slate-900 text-lg">{conductor.first_name} {conductor.last_name || ''}</h3>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(conductor.status)}`}>
                     <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                      driver.status !== 'inactive' ? 'bg-emerald-500' : 'bg-slate-400'
+                      conductor.status !== 'inactive' ? 'bg-emerald-500' : 'bg-slate-400'
                     }`} />
-                    {driver.status.charAt(0).toUpperCase() + driver.status.slice(1)}
+                    {conductor.status.charAt(0).toUpperCase() + conductor.status.slice(1)}
                   </span>
                 </div>
               </div>
@@ -227,13 +227,13 @@ export default function DriversPage() {
                 <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                   <Phone size={16} className="text-slate-500" />
                 </div>
-                <span className="text-sm">{driver.phone}</span>
+                <span className="text-sm">{conductor.phone}</span>
               </div>
               <div className="flex items-center gap-3 text-slate-600">
                 <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                   <Car size={16} className="text-slate-500" />
                 </div>
-                <span className="text-sm">License: <span className="font-medium">{driver.license_number}</span></span>
+                <span className="text-sm">License: <span className="font-medium">{conductor.license_number}</span></span>
               </div>
             </div>
 
@@ -241,32 +241,32 @@ export default function DriversPage() {
               <div className="text-center flex-1">
                 <div className="flex items-center justify-center gap-1">
                   <Star size={16} className="text-amber-500 fill-amber-500" />
-                  <span className="text-lg font-bold text-slate-900">{driver.rating || 'N/A'}</span>
+                  <span className="text-lg font-bold text-slate-900">{conductor.rating || 'N/A'}</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">Rating</p>
               </div>
               <div className="w-px h-10 bg-slate-200" />
               <div className="text-center flex-1">
-                <span className="text-lg font-bold text-slate-900">{driver.total_trips || 0}</span>
+                <span className="text-lg font-bold text-slate-900">{conductor.total_trips || 0}</span>
                 <p className="text-xs text-slate-500 mt-0.5">Total Trips</p>
               </div>
               <div className="w-px h-10 bg-slate-200" />
               <div className="text-center flex-1">
-                <span className="text-lg font-bold text-slate-900">{driver.created_at ? new Date(driver.created_at).toLocaleDateString() : '-'}</span>
+                <span className="text-lg font-bold text-slate-900">{conductor.created_at ? new Date(conductor.created_at).toLocaleDateString() : '-'}</span>
                 <p className="text-xs text-slate-500 mt-0.5">Joined</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => openEditModal(driver)}
+                onClick={() => openEditModal(conductor)}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-600 rounded-xl font-medium hover:bg-indigo-100 transition-colors"
               >
                 <Edit size={18} />
                 Edit
               </button>
               <button
-                onClick={() => setDeleteConfirm(driver)}
+                onClick={() => setDeleteConfirm(conductor)}
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors"
               >
                 <Trash2 size={18} />

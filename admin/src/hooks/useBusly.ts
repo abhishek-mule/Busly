@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI, vehiclesAPI, driversAPI, routesAPI, studentsAPI, attendanceAPI, alertsAPI, tripsAPI, stopsAPI } from '@/lib/api';
+import { authAPI, vehiclesAPI, conductorsAPI, routesAPI, studentsAPI, attendanceAPI, alertsAPI, tripsAPI, stopsAPI } from '@/lib/api';
 
 interface User {
   id: string;
@@ -154,12 +154,12 @@ export function useVehicle(id: string) {
   return useFetch(() => vehiclesAPI.get(id), [id], { immediate: !!id });
 }
 
-export function useDrivers(params?: any) {
-  return useFetch(() => driversAPI.list(params), [params]);
+export function useConductors(params?: any) {
+  return useFetch(() => conductorsAPI.list(params), [params]);
 }
 
-export function useDriver(id: string) {
-  return useFetch(() => driversAPI.get(id), [id], { immediate: !!id });
+export function useConductor(id: string) {
+  return useFetch(() => conductorsAPI.get(id), [id], { immediate: !!id });
 }
 
 export function useRoutes(params?: any) {

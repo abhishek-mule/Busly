@@ -39,7 +39,7 @@ pinned: false
 
 | Who | Where | What they get |
 |---|---|---|
-| 🚍 **Driver** | 📱 phone | Today's trips, Start/End trip, live GPS sharing, mark attendance |
+| 🚍 **Conductor** | 📱 phone | Today's trips, Start/End trip, live GPS sharing, mark attendance |
 | 👪 **Parent** | 📱 phone | Live bus map with stops + route, linked children, attendance history |
 | 👩‍🏫 **Teacher** | 📱 phone | Class roster with search, daily roll-call, fleet-wide live map |
 | 🛠️ **Admin** | 💻 browser | Dashboard, vehicles, conductors, routes, students, live map, alerts, reports |
@@ -50,13 +50,13 @@ One login per role — the app reshapes itself around who you are.
 
 ## 📱 Android APK
 
-No build needed — scan or tap to install the unified mobile app (driver / parent / teacher roles, points at the public cloud backend):
+No build needed — scan or tap to install the unified mobile app (conductor / parent / teacher roles, points at the public cloud backend):
 
 [<img src="docs/busly-apk-qr.png" width="180" alt="QR code for the Busly Android APK" />](https://github.com/abhishek-mule/Busly/releases/download/v1.0-apk/busly-v1.0.apk)
 
 **[⬇️ Download busly-v1.0.apk](https://github.com/abhishek-mule/Busly/releases/download/v1.0-apk/busly-v1.0.apk)** · [Release notes](https://github.com/abhishek-mule/Busly/releases/tag/v1.0-apk) · v1.0.0 (EAS preview, internal distribution)
 
-Logins: `driver@busly.com / driver123` · `parent@busly.com / parent123` · `teacher@busly.com / teacher123`.
+Logins: `conductor@busly.com / conductor123` · `parent@busly.com / parent123` · `teacher@busly.com / teacher123`.
 
 > Notes: allow "install unknown apps" when prompted. The free backend sleeps after 15 min idle — if the first open hangs, wait a minute and retry. This APK talks to shared **demo** data; rebuild from `busly-app/` if the backend URL ever changes (`EXPO_PUBLIC_API_URL` is baked in at build time).
 
@@ -66,7 +66,7 @@ Logins: `driver@busly.com / driver123` · `parent@busly.com / parent123` · `tea
 
 Tell **one story** across four logins:
 
-1. **Driver** starts the morning pickup → the bus goes **Live** 🟢
+1. **Conductor** starts the morning pickup → the bus goes **Live** 🟢
 2. **Parent** opens Tracking → watches the bus move along the route line 🗺️
 3. **Teacher** takes roll-call from the Roster ✅
 4. **Admin** opens the dashboard → everything that just happened is already there 📊
@@ -196,7 +196,7 @@ Phone on mobile data instead? Use `npx expo start --tunnel` + the public URL bel
 ### Step 7 — Verify the loop ✅
 
 1. Admin: `admin@busly.com / admin123` at `http://localhost:3000` → real data shows
-2. Phone: `driver@busly.com / driver123` → Home → **Start Trip** → Live badge 🟢
+2. Phone: `conductor@busly.com / conductor123` → Home → **Start Trip** → Live badge 🟢
 3. Phone: `parent@busly.com / parent123` → Tracking → bus on the map 🗺️
 
 ---
@@ -267,7 +267,7 @@ API=http://localhost:8010/api/v1 python3 scripts/demo-seed.py
 | Login | Password | Role |
 |---|---|---|
 | `admin@busly.com` | `admin123` | 🛠️ Admin |
-| `driver@busly.com` | `driver123` | 🚍 Driver |
+| `conductor@busly.com` | `conductor123` | 🚍 Conductor |
 | `teacher@busly.com` | `teacher123` | 👩‍🏫 Teacher |
 | `parent@busly.com` | `parent123` | 👪 Parent |
 

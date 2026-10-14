@@ -39,12 +39,12 @@ interface MarkedRecord {
 }
 
 interface Props {
-  mode?: 'driver' | 'teacher';
+  mode?: 'conductor' | 'teacher';
 }
 
-export default function AttendanceScreen({ mode = 'driver' }: Props) {
+export default function AttendanceScreen({ mode = 'conductor' }: Props) {
   const { user } = useAuth();
-  const isDriver = mode === 'driver';
+  const isConductor = mode === 'conductor';
   const [students, setStudents] = useState<Student[]>([]);
   const [marks, setMarks] = useState<Record<string, 'present' | 'absent'>>({});
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -58,7 +58,7 @@ export default function AttendanceScreen({ mode = 'driver' }: Props) {
     setError('');
     try {
       const dateStr = todayISO();
-      if (isDriver) {
+      if (isConductor) {
         const [tripsRes, markedRes] = await Promise.all([
           api.get<{ items: Trip[] }>(`/trips?date=${dateStr}&limit=50`),
           api.get<{ items: MarkedRecord[] }>(`/attendance/daily?date=${dateStr}`),
@@ -99,7 +99,7 @@ export default function AttendanceScreen({ mode = 'driver' }: Props) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isDriver]);
+  }, [isConductor]);
 
   useEffect(() => {
     load();
@@ -126,9 +126,9 @@ export default function AttendanceScreen({ mode = 'driver' }: Props) {
           student_id: s.id,
           status: marks[s.id],
           date: todayISO(),
-          trip_type: isDriver ? (trip?.trip_type === 'drop' ? 'dropoff' : (trip?.trip_type ?? 'pickup')) : 'pickup',
+          trip_type: isConductor ? (trip?.trip_type === 'drop' ? 'dropoff' : (trip?.trip_type ?? 'pickup')) : 'pickup',
         })),
-        trip_id: isDriver ? trip?.id ?? '' : '',
+        trip_id: isConductor ? trip?.id ?? '' : '',
         marked_by: user?.id ?? '',
       });
       setSubmitted(true);
@@ -139,7 +139,7 @@ export default function AttendanceScreen({ mode = 'driver' }: Props) {
     }
   };
 
-  const subtitle = isDriver
+  const subtitle = isConductor
     ? trip
       ? `${trip.trip_type === 'drop' || trip.trip_type === 'dropoff' ? 'Drop-off' : 'Pickup'} · ${new Date().toLocaleDateString([], { day: 'numeric', month: 'short' })}`
       : 'No trip today'

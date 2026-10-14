@@ -19,7 +19,7 @@ const initialForm = {
   morning_pickup_time: '',
   evening_drop_time: '',
   vehicle_id: '',
-  driver_id: '',
+  conductor_id: '',
   status: 'active',
   base_fare: '',
 };
@@ -122,7 +122,7 @@ export default function RoutesPage() {
       morning_pickup_time: item.morning_pickup_time || '',
       evening_drop_time: item.evening_drop_time || '',
       vehicle_id: item.vehicle_id?.toString() || '',
-      driver_id: item.driver_id?.toString() || '',
+      conductor_id: item.conductor_id?.toString() || '',
       status: item.status || 'active',
       base_fare: item.base_fare?.toString() || '',
     });
@@ -135,7 +135,7 @@ export default function RoutesPage() {
       const payload: any = {};
       for (const [key, value] of Object.entries(form)) {
         if (value !== '' && value !== null) {
-          if (['total_distance_km', 'estimated_time_minutes', 'vehicle_id', 'driver_id', 'base_fare'].includes(key)) {
+          if (['total_distance_km', 'estimated_time_minutes', 'vehicle_id', 'conductor_id', 'base_fare'].includes(key)) {
             payload[key] = Number(value);
           } else {
             payload[key] = value;
@@ -211,7 +211,7 @@ export default function RoutesPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label="Vehicle ID" name="vehicle_id" type="number" value={form.vehicle_id} onChange={handleFormChange} />
-            <FormField label="Conductor ID" name="driver_id" type="number" value={form.driver_id} onChange={handleFormChange} />
+            <FormField label="Conductor ID" name="conductor_id" type="number" value={form.conductor_id} onChange={handleFormChange} />
             <FormField label="Base Fare" name="base_fare" type="number" value={form.base_fare} onChange={handleFormChange} />
           </div>
           <FormField

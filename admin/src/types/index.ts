@@ -30,7 +30,7 @@ export interface Vehicle {
   created_at?: string;
 }
 
-export interface Driver {
+export interface Conductor {
   id: string;
   first_name: string;
   last_name?: string;
@@ -63,7 +63,7 @@ export interface Route {
   evening_drop_time?: string;
   status: 'active' | 'inactive';
   vehicle_id?: string;
-  driver_id?: string;
+  conductor_id?: string;
   stops?: Stop[];
   created_at?: string;
 }
@@ -107,7 +107,7 @@ export interface Trip {
   id: string;
   route_id: string;
   vehicle_id?: string;
-  driver_id?: string;
+  conductor_id?: string;
   trip_type: string;
   scheduled_start_time?: string;
   scheduled_end_time?: string;
@@ -141,7 +141,7 @@ export interface Alert {
   title: string;
   message: string;
   vehicle_id?: string;
-  driver_id?: string;
+  conductor_id?: string;
   student_id?: string;
   route_id?: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -170,9 +170,9 @@ export interface ChecklistItem {
   notes?: string;
 }
 
-export interface DriverChecklist {
+export interface ConductorChecklist {
   id: string;
-  driver_id: string;
+  conductor_id: string;
   vehicle_id: string;
   trip_id?: string;
   checklist_date: string;
@@ -188,8 +188,8 @@ export interface DashboardStats {
   active_students: number;
   total_vehicles: number;
   active_vehicles: number;
-  total_drivers: number;
-  active_drivers: number;
+  total_conductors: number;
+  active_conductors: number;
   total_routes: number;
   active_routes: number;
   today_trips: number;

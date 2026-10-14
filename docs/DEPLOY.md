@@ -34,7 +34,7 @@ cd busly-app && EXPO_PUBLIC_API_URL=<API-URL>/api/v1 npx expo start --tunnel
 ```
 
 **Verify:** script's health/login checks pass → admin login
-(`admin@busly.com` / `admin123`) → driver starts trip → parent sees the bus.
+(`admin@busly.com` / `admin123`) → conductor starts trip → parent sees the bus.
 
 **Rules of this setup:**
 - Tunnel URLs **rotate** when containers recreate. Re-run `demo-up.sh`
@@ -108,7 +108,7 @@ API=https://<you>-busly-api.hf.space/api/v1 python3 scripts/demo-seed.py
 - Phone: Expo Go with
   `EXPO_PUBLIC_API_URL=https://<you>-busly-api.hf.space/api/v1`
   (or EAS build with the same URL baked in).
-- Logins: `admin@busly.com / admin123`, `driver@busly.com / driver123`,
+- Logins: `admin@busly.com / admin123`, `conductor@busly.com / conductor123`,
   `teacher@busly.com / teacher123`, `parent@busly.com / parent123`.
 
 ### Honest caveats (free cloud)

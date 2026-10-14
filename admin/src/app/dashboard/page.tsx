@@ -1,6 +1,6 @@
 'use client';
 
-import { useVehicles, useDrivers, useRoutes, useStudents, useAlerts } from '@/hooks/useBusly';
+import { useVehicles, useConductors, useRoutes, useStudents, useAlerts } from '@/hooks/useBusly';
 import { tripsAPI, attendanceAPI, Trip } from '@/lib/api';
 import { useState, useEffect } from 'react';
 import {
@@ -47,7 +47,7 @@ const alertIcon: Record<string, { icon: any; color: string }> = {
 
 export default function DashboardPage() {
   const { data: vehicles, isLoading: vLoading } = useVehicles();
-  const { data: drivers, isLoading: dLoading } = useDrivers();
+  const { data: conductors, isLoading: dLoading } = useConductors();
   const { data: routes, isLoading: rLoading } = useRoutes();
   const { data: students, isLoading: sLoading } = useStudents();
   const { data: alertsData, isLoading: aLoading } = useAlerts();
@@ -113,7 +113,7 @@ export default function DashboardPage() {
   }, []);
 
   const vehicleArr = Array.isArray(vehicles) ? vehicles : [];
-  const driverArr = Array.isArray(drivers) ? drivers : [];
+  const conductorArr = Array.isArray(conductors) ? conductors : [];
   const routeArr = Array.isArray(routes) ? routes : [];
   const studentArr = Array.isArray(students) ? students : [];
   const alerts = (alertsData as any)?.items || (Array.isArray(alertsData) ? alertsData : []);
@@ -124,10 +124,10 @@ export default function DashboardPage() {
       active: vehicleArr.filter((v: any) => v.status === 'active').length,
       maintenance: vehicleArr.filter((v: any) => v.status === 'maintenance').length,
     },
-    drivers: {
-      total: driverArr.length,
-      active: driverArr.filter((d: any) => d.status === 'active').length,
-      available: driverArr.filter((d: any) => d.is_available).length,
+    conductors: {
+      total: conductorArr.length,
+      active: conductorArr.filter((d: any) => d.status === 'active').length,
+      available: conductorArr.filter((d: any) => d.is_available).length,
     },
     routes: {
       total: routeArr.length,
@@ -158,11 +158,11 @@ export default function DashboardPage() {
     },
     {
       title: 'Active Conductors',
-      value: dLoading ? '-' : stats.drivers.active,
+      value: dLoading ? '-' : stats.conductors.active,
       icon: Users,
       color: 'emerald',
-      stats: dLoading ? 'Loading...' : `${stats.drivers.available} available now`,
-      href: '/dashboard/drivers'
+      stats: dLoading ? 'Loading...' : `${stats.conductors.available} available now`,
+      href: '/dashboard/conductors'
     },
     {
       title: 'Active Routes',

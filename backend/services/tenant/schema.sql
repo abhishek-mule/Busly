@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE(tenant_id, email)
 );
 
-CREATE TABLE IF NOT EXISTS drivers (
+CREATE TABLE IF NOT EXISTS conductors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id VARCHAR(64) NOT NULL,
     user_id UUID REFERENCES users(id),
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS routes (
     optimized_order UUID[] DEFAULT '{}',
     base_fare DECIMAL(10,2) DEFAULT 0,
     vehicle_id UUID REFERENCES vehicles(id),
-    driver_id UUID REFERENCES drivers(id),
+    conductor_id UUID REFERENCES conductors(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS trips (
     tenant_id VARCHAR(64) NOT NULL,
     route_id UUID REFERENCES routes(id),
     vehicle_id UUID REFERENCES vehicles(id),
-    driver_id UUID REFERENCES drivers(id),
+    conductor_id UUID REFERENCES conductors(id),
     trip_type VARCHAR(16) DEFAULT 'pickup',
     scheduled_start_time TIMESTAMPTZ,
     scheduled_end_time TIMESTAMPTZ,
@@ -234,10 +234,10 @@ CREATE TABLE IF NOT EXISTS geofence_zones (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS driver_checklists (
+CREATE TABLE IF NOT EXISTS conductor_checklists (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id VARCHAR(64) NOT NULL,
-    driver_id UUID REFERENCES drivers(id),
+    conductor_id UUID REFERENCES conductors(id),
     vehicle_id UUID REFERENCES vehicles(id),
     trip_id UUID REFERENCES trips(id),
     checklist_date DATE NOT NULL,
@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
     vehicle_id UUID REFERENCES vehicles(id),
-    driver_id UUID REFERENCES drivers(id),
+    conductor_id UUID REFERENCES conductors(id),
     student_id UUID REFERENCES students(id),
     route_id UUID REFERENCES routes(id),
     severity VARCHAR(16) DEFAULT 'medium',
@@ -366,7 +366,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_drivers_tenant ON drivers(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_conductors_tenant ON conductors(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_vehicles_tenant ON vehicles(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_routes_tenant ON routes(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_stops_tenant ON stops(tenant_id);
@@ -391,5 +391,5 @@ CREATE INDEX IF NOT EXISTS idx_reports_tenant ON reports(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_tenant ON audit_logs(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(session_id);
-CREATE INDEX IF NOT EXISTS idx_checklist_driver ON driver_checklists(driver_id);
-CREATE INDEX IF NOT EXISTS idx_checklist_date ON driver_checklists(checklist_date);
+CREATE INDEX IF NOT EXISTS idx_checklist_conductor ON conductor_checklists(conductor_id);
+CREATE INDEX IF NOT EXISTS idx_checklist_date ON conductor_checklists(checklist_date);
