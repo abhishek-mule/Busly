@@ -1,8 +1,13 @@
+import hashlib
 import os
 import re
 
 from celery import Celery
 from kombu import Queue
+
+
+def _h(s: str) -> str:
+    return hashlib.sha256((s or "").encode()).hexdigest()[:12]
 
 _INVISIBLE = " \t\r\n\ufeff\u200b\u200c\u200d"
 
@@ -46,6 +51,7 @@ def _safe_result_backend(url: str) -> str:
     try:
         from celery import Celery as _Celery
         _Celery("busly-probe", backend=url).backend.as_uri()
+        print(f"busly: probe ok hash={_h(url)}", flush=True)
         return url
     except Exception as exc:
         print(f"busly: result backend unusable, task results disabled ({exc})", flush=True)
@@ -88,6 +94,8 @@ celery_app.conf.update(
 if _RESULT_BACKEND == "disabled":
     # No result store: don't try to persist STARTED states either.
     celery_app.conf.task_track_started = False
+
+print(f"busly: worker backend conf hash={_h(celery_app.conf.result_backend)} explicit hash={_h(_RESULT_BACKEND)}", flush=True)
 
 from backend.workers.tasks import (  # noqa: E402,F401
     notification_sender,
