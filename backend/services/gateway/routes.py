@@ -55,7 +55,7 @@ ROUTE_TABLE: dict[str, RouteConfig] = {
     "/api/v1/notifications": {"target": _svc("notification", 8008), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "conductor", "parent"]},
     "/api/v1/notifications/broadcast": {"target": _svc("notification", 8008), "rate_limit": 10, "auth_required": True, "scopes": ["admin"]},
     "/api/v1/users": {"target": _svc("auth", 8001), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "conductor", "parent"]},
-    "/api/v1/school": {"target": _svc("tenant", 8006), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "parent", "conductor", "teacher"]},
+    "/api/v1/school": {"target": _svc("notification", 8008), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "parent", "conductor", "teacher"]},
     "/api/v1/alerts": {"target": _svc("notification", 8008), "rate_limit": 60, "auth_required": True, "scopes": ["admin", "teacher", "conductor"]},
     "/api/v1/reports": {"target": _svc("fleet", 8002), "rate_limit": 30, "auth_required": True, "scopes": ["admin"]},
     "/api/v1/analytics": {"target": _svc("fleet", 8002), "rate_limit": 30, "auth_required": True, "scopes": ["admin"]},

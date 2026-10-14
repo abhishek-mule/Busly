@@ -53,6 +53,14 @@ class BroadcastCreate(BaseModel):
     body: str
 
 
+class SchoolProfile(BaseModel):
+    name: str
+    phone: str = ""
+    email: str = ""
+    address: str = ""
+    city: str = ""
+
+
 def _caller_roles(x_user_roles: str = "") -> set[str]:
     return {r.strip() for r in (x_user_roles or "").split(",") if r.strip()}
 
@@ -124,6 +132,39 @@ async def broadcast_to_parents(data: BroadcastCreate, tenant_id: str = "default"
             sent += 1
         await s.commit()
         return {"status": "sent", "recipients": sent}
+
+
+@app.get("/school")
+async def get_school(tenant_id: str = "default"):
+    """School contact card for parent/conductor portals."""
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        row = (await s.execute(text(
+            "SELECT name, phone, email, address, city FROM companies WHERE is_active = true ORDER BY created_at LIMIT 1"
+        ))).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "School profile not set yet"})
+        return {"name": row[0], "phone": row[1], "email": row[2], "address": row[3], "city": row[4]}
+
+
+@app.post("/school")
+async def upsert_school(data: SchoolProfile, tenant_id: str = "default", x_user_roles: str = Header("")):
+    """Create or update the school contact card. Admins only."""
+    _require_roles(x_user_roles, {"admin"}, "update the school profile")
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        existing = (await s.execute(text("SELECT id FROM companies WHERE is_active = true ORDER BY created_at LIMIT 1"))).fetchone()
+        email = data.email or f"school@{tenant_id}.local"
+        if existing:
+            await s.execute(text("""UPDATE companies SET name = :n, phone = :p, email = :e,
+                address = :a, city = :c, updated_at = NOW() WHERE id = :id"""),
+                {"n": data.name, "p": data.phone, "e": email, "a": data.address, "c": data.city, "id": existing[0]})
+        else:
+            await s.execute(text("""INSERT INTO companies (name, phone, email, address, city)
+                VALUES (:n, :p, :e, :a, :c)"""),
+                {"n": data.name, "p": data.phone, "e": email, "a": data.address, "c": data.city})
+        await s.commit()
+        return await get_school(tenant_id)
 
 
 @app.get("/alerts")
