@@ -21,7 +21,7 @@ pinned: false
 [![Cost](https://img.shields.io/badge/cost-%240_forever-success)](https://github.com/abhishek-mule/Busly)
 [![License](https://img.shields.io/badge/license-All_rights_reserved-lightgrey)](LICENSE)
 
-[📖 User Manual (PDF)](docs/busly_manual.pdf) · [🎬 Demo Video](#-demo-video) · [🚀 Setup from Scratch](#-setup-from-scratch) · [🎭 Demo Script](#-the-5-minute-demo)
+[📖 User Manual (PDF)](docs/busly_manual.pdf) · [🎬 Demo Video](#-demo-video) · [📱 Android APK](#-android-apk) · [🚀 Setup from Scratch](#-setup-from-scratch) · [🎭 Demo Script](#-the-5-minute-demo)
 
 </div>
 
@@ -45,6 +45,20 @@ pinned: false
 | 🛠️ **Admin** | 💻 browser | Dashboard, vehicles, conductors, routes, students, live map, alerts, reports |
 
 One login per role — the app reshapes itself around who you are.
+
+---
+
+## 📱 Android APK
+
+No build needed — scan or tap to install the unified mobile app (driver / parent / teacher roles, points at the public cloud backend):
+
+[<img src="docs/busly-apk-qr.png" width="180" alt="QR code for the Busly Android APK" />](https://github.com/abhishek-mule/Busly/releases/download/v1.0-apk/busly-v1.0.apk)
+
+**[⬇️ Download busly-v1.0.apk](https://github.com/abhishek-mule/Busly/releases/download/v1.0-apk/busly-v1.0.apk)** · [Release notes](https://github.com/abhishek-mule/Busly/releases/tag/v1.0-apk) · v1.0.0 (EAS preview, internal distribution)
+
+Logins: `driver@busly.com / driver123` · `parent@busly.com / parent123` · `teacher@busly.com / teacher123`.
+
+> Notes: allow "install unknown apps" when prompted. The free backend sleeps after 15 min idle — if the first open hangs, wait a minute and retry. This APK talks to shared **demo** data; rebuild from `busly-app/` if the backend URL ever changes (`EXPO_PUBLIC_API_URL` is baked in at build time).
 
 ---
 
