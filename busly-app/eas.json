@@ -14,7 +14,6 @@
         "buildType": "apk"
       },
       "env": {
-        "GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY",
         "EXPO_PUBLIC_API_URL": "$EXPO_PUBLIC_API_URL"
       }
     },
@@ -23,7 +22,6 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "GOOGLE_MAPS_API_KEY": "$GOOGLE_MAPS_API_KEY",
         "EXPO_PUBLIC_API_URL": "$EXPO_PUBLIC_API_URL"
       }
     }
