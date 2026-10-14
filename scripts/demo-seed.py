@@ -18,6 +18,10 @@ import urllib.request
 import urllib.error
 
 API = os.environ.get("API", "http://localhost:8000/api/v1")
+try:
+    REQ_TIMEOUT = float(os.environ.get("SEED_TIMEOUT", "15"))
+except ValueError:
+    REQ_TIMEOUT = 15.0
 PARENT_PHONE = "+91 98765 11111"
 
 ACCOUNTS = [
@@ -49,7 +53,7 @@ def req(method, path, token=None, body=None):
     if token:
         r.add_header("Authorization", f"Bearer {token}")
     try:
-        with urllib.request.urlopen(r, timeout=15) as resp:
+        with urllib.request.urlopen(r, timeout=REQ_TIMEOUT) as resp:
             raw = resp.read().decode()
             return resp.status, json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
