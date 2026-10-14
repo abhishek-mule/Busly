@@ -7,7 +7,7 @@ module.exports = {
     slug: 'busly',
     version: '1.0.0',
     orientation: 'portrait',
-    icon: './busly.png',
+    icon: './icon.png',
     userInterfaceStyle: 'light',
     newArchEnabled: true,
     splash: {

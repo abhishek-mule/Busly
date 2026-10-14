@@ -376,8 +376,10 @@ recording (see docs/busly_demo.mp4).
     docs/               old busly-logo.png, busly_manual.pdf (+ demo video
                         attached to the v1.0-demo GitHub Release, not in git)
     admin/public/       busly-mascot-logo.svg = main logo (login, sidebar,
-                        favicon, README); busly.png files re-rendered
-                        from the mascot (Expo icon must be PNG)
+                        favicon, README); busly_splash.png = splash art.
+                        No busly.png remains anywhere: the Expo launcher
+                        icon is busly-app/icon.png (PNG is mandatory for
+                        launchers), in-app logo renders from the SVG.
     docker-compose.yml  12 services + tunnel profile, restart policies
     vercel.json         admin deploy config (Root Directory approach)
     LICENSE             (c) 2026 Abhishek Mule, all rights reserved
