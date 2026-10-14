@@ -50,11 +50,12 @@ module.exports = {
       ],
     ],
     extra: {
-      // Linked by `npx eas init` (project ID is pasted here on first link;
-      // keep the fallback empty so init can detect the unlinked state).
-      ...(process.env.EAS_PROJECT_ID
-        ? { eas: { projectId: process.env.EAS_PROJECT_ID } }
-        : {}),
+      // Linked via `npx eas init` (@abhi2709/busly). EAS_PROJECT_ID env can
+      // still override this at build time.
+      eas: {
+        projectId:
+          process.env.EAS_PROJECT_ID || "9bd0a323-8e5b-4460-a68b-f663e7630d8a",
+      },
     },
   },
 };
