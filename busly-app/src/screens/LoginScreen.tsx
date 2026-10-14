@@ -5,11 +5,12 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import { SvgXml } from 'react-native-svg';
+import { BUSLY_MASCOT_SVG } from '../assets/busly-mascot';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, CircleAlert, Loader2 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors, radius, shadow } from '../theme';
@@ -50,7 +51,7 @@ export default function LoginScreen() {
       >
         <View style={styles.brand}>
           <View style={styles.logoWrap}>
-            <Image source={require('../../busly.png')} style={styles.logo} resizeMode="contain" />
+            <SvgXml xml={BUSLY_MASCOT_SVG} width={64} height={64} />
           </View>
           <Text style={styles.title}>Busly</Text>
           <Text style={styles.subtitle}>Sign in to start your route</Text>
@@ -141,8 +142,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 20,
     ...shadow,
+    overflow: 'hidden',
   },
-  logo: { width: 64, height: 64 },
   title: { fontSize: 28, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   subtitle: { fontSize: 15, color: colors.textMuted, marginTop: 6 },
   form: { gap: 14 },
