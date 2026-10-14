@@ -39,10 +39,10 @@ pinned: false
 
 | Who | Where | What they get |
 |---|---|---|
-| 🚍 **Conductor** | 📱 phone | Today's trips, Start/End trip, live GPS sharing, mark attendance |
-| 👪 **Parent** | 📱 phone | Live bus map with stops + route, linked children, attendance history |
+| 🚍 **Conductor** | 📱 phone | Today's trips, Start/End trip, live GPS sharing, mark attendance, parents' contacts per route |
+| 👪 **Parent** | 📱 phone | Live bus map with stops + route, linked children, attendance history, school notices, school/conductor/teacher contacts |
 | 👩‍🏫 **Teacher** | 📱 phone | Class roster with search, daily roll-call, fleet-wide live map |
-| 🛠️ **Admin** | 💻 browser | Dashboard, vehicles, conductors, routes, students, live map, alerts, reports |
+| 🛠️ **Admin** | 💻 browser | Dashboard, vehicles, conductors, routes, students, live map, alerts, reports, parent announcements |
 
 One login per role — the app reshapes itself around who you are.
 
