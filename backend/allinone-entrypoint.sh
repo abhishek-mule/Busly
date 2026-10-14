@@ -9,4 +9,13 @@ if [ -n "${JWT_PRIVATE_KEY:-}" ]; then
   printf '%b' "${JWT_PUBLIC_KEY:-}" > /etc/keys/public.pem
   chmod 600 /etc/keys/private.pem
 fi
-exec honcho start
+PROCFILE=/app/Procfile
+if [ "${ENABLE_WORKER:-true}" != "true" ]; then
+  # Free tiers (e.g. Render 512MB) can't fit the worker alongside the 8
+  # services: run gateway + microservices only. Route optimization and CSV
+  # report jobs stay queued; the admin dashboard falls back to live CSV.
+  grep -v '^worker:' /app/Procfile > /tmp/Procfile.noworker
+  PROCFILE=/tmp/Procfile.noworker
+  echo "busly: worker disabled via ENABLE_WORKER=false"
+fi
+exec honcho -f "$PROCFILE" start
