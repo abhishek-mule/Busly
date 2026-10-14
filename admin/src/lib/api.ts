@@ -145,6 +145,16 @@ export const reportsAPI = {
 export const notificationsAPI = {
   list: (params?: any) => api.get('/notifications', { params }),
   send: (data: any) => api.post('/notifications', data),
+  broadcast: (data: any) => api.post('/notifications/broadcast', data),
+};
+
+export const usersAPI = {
+  list: (role: string) => api.get('/users', { params: { role } }),
+};
+
+export const schoolAPI = {
+  get: () => api.get('/school'),
+  update: (data: any) => api.post('/school', data),
 };
 
 export const maintenanceAPI = {

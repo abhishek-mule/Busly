@@ -1,7 +1,7 @@
 import os
 from contextlib import asynccontextmanager
 from sqlalchemy import text
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Request
 from pydantic import BaseModel
 from prometheus_client import make_asgi_app
 from redis.asyncio import Redis
@@ -48,6 +48,20 @@ class AlertCreate(BaseModel):
     severity: str = "medium"
 
 
+class BroadcastCreate(BaseModel):
+    title: str
+    body: str
+
+
+def _caller_roles(x_user_roles: str = "") -> set[str]:
+    return {r.strip() for r in (x_user_roles or "").split(",") if r.strip()}
+
+
+def _require_roles(x_user_roles: str, allowed: set[str], action: str) -> None:
+    if not (_caller_roles(x_user_roles) & allowed):
+        raise HTTPException(status_code=403, detail={"code": "FORBIDDEN", "message": f"Not allowed to {action}"})
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "notification-service", "version": "1.0.0"}
@@ -73,7 +87,8 @@ async def list_notifications(tenant_id: str = "default", user_id: str = "", page
 
 
 @app.post("/notifications")
-async def send_notification(data: NotificationCreate, tenant_id: str = "default"):
+async def send_notification(data: NotificationCreate, tenant_id: str = "default", x_user_roles: str = Header("")):
+    _require_roles(x_user_roles, {"admin", "teacher", "conductor"}, "send notifications")
     session = session_factory.get_session(tenant_id)
     async for s in session:
         result = await s.execute(text("""INSERT INTO notifications (tenant_id, user_id, title, body, channel, notification_type, status, sent_at)
@@ -84,6 +99,31 @@ async def send_notification(data: NotificationCreate, tenant_id: str = "default"
         notif_id = str(result.scalar())
         await s.commit()
         return {"status": "sent", "id": notif_id}
+
+
+@app.post("/notifications/broadcast")
+async def broadcast_to_parents(data: BroadcastCreate, tenant_id: str = "default", x_user_roles: str = Header("")):
+    """Admin announcement to every parent (e.g. early school closure).
+
+    Writes one in-app notification per active parent user; parent apps
+    surface notification_type='announcement' in their notices feed.
+    """
+    _require_roles(x_user_roles, {"admin"}, "broadcast announcements")
+    if not data.title.strip() or not data.body.strip():
+        raise HTTPException(status_code=422, detail={"code": "EMPTY_MESSAGE", "message": "Title and message are required"})
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        parents = (await s.execute(text(
+            "SELECT id FROM users WHERE tenant_id = :tid AND is_active = true AND 'parent' = ANY(roles)"
+        ), {"tid": tenant_id})).fetchall()
+        sent = 0
+        for (user_id,) in parents:
+            await s.execute(text("""INSERT INTO notifications (tenant_id, user_id, title, body, channel, notification_type, status, sent_at)
+                VALUES (:tid, :uid, :title, :body, 'in_app', 'announcement', 'sent', NOW())"""),
+                {"tid": tenant_id, "uid": user_id, "title": data.title.strip(), "body": data.body.strip()})
+            sent += 1
+        await s.commit()
+        return {"status": "sent", "recipients": sent}
 
 
 @app.get("/alerts")

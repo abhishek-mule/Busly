@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import {
   Baby,
@@ -15,6 +16,9 @@ import {
   CalendarDays,
   CircleCheck,
   CircleMinus,
+  Megaphone,
+  Phone,
+  School,
 } from 'lucide-react-native';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -54,6 +58,37 @@ interface AttendanceRow {
   status: string;
 }
 
+interface Notice {
+  id: string;
+  title: string;
+  body: string;
+  sent_at: string | null;
+}
+
+interface SchoolInfo {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  city: string | null;
+}
+
+interface ConductorInfo {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
+interface TeacherInfo {
+  id: string;
+  full_name: string;
+  phone: string | null;
+}
+
+const dial = (phone: string | null | undefined) => {
+  if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
+};
+
 export default function ChildrenScreen() {
   const { user } = useAuth();
   const [children, setChildren] = useState<Student[]>([]);
@@ -61,6 +96,10 @@ export default function ChildrenScreen() {
   const [stops, setStops] = useState<Record<string, string>>({});
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [school, setSchool] = useState<SchoolInfo | null>(null);
+  const [conductors, setConductors] = useState<Record<string, ConductorInfo>>({});
+  const [teachers, setTeachers] = useState<TeacherInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -69,11 +108,14 @@ export default function ChildrenScreen() {
     setError('');
     try {
       const phone = normalizePhone(user?.phone);
-      const [studentsRes, routesRes, stopsRes, attendanceRes] = await Promise.all([
+      const [studentsRes, routesRes, stopsRes, attendanceRes, noticesRes, schoolRes, teachersRes] = await Promise.all([
         api.get<{ items: Student[] }>('/students?limit=300'),
         api.get<{ items: RouteInfo[] }>('/routes?limit=100'),
         api.get<{ items: Stop[] }>('/stops?limit=300'),
         api.get<{ items: AttendanceRow[] }>('/attendance?limit=300'),
+        api.get<{ items: any[] }>('/notifications?limit=50').catch(() => ({ items: [] })),
+        api.get<SchoolInfo>('/school').catch(() => null),
+        api.get<{ items: TeacherInfo[] }>('/users?role=teacher').catch(() => ({ items: [] })),
       ]);
       const kids = phone
         ? (studentsRes.items ?? []).filter(
@@ -92,6 +134,33 @@ export default function ChildrenScreen() {
       setStops(stopMap);
 
       setAttendance(attendanceRes.items ?? []);
+      setNotices(
+        (noticesRes.items ?? [])
+          .filter((n: any) => n.notification_type === 'announcement')
+          .slice(0, 5)
+          .map((n: any) => ({ id: n.id, title: n.title, body: n.body, sent_at: n.sent_at ?? null }))
+      );
+      setSchool(schoolRes);
+      setTeachers(teachersRes.items ?? []);
+
+      const routeIds = Array.from(
+        new Set(kids.map((k) => k.route_id).filter((r): r is string => !!r))
+      );
+      const conductorEntries = await Promise.all(
+        routeIds.map(async (routeId) => {
+          try {
+            const c = await api.get<ConductorInfo>(`/routes/${routeId}/conductor`);
+            return [routeId, c] as const;
+          } catch {
+            return null;
+          }
+        })
+      );
+      const conductorMap: Record<string, ConductorInfo> = {};
+      for (const entry of conductorEntries) {
+        if (entry) conductorMap[entry[0]] = entry[1];
+      }
+      setConductors(conductorMap);
     } catch (e: any) {
       setError(e?.message ?? 'Could not load your children’s data.');
     } finally {
@@ -161,6 +230,85 @@ export default function ChildrenScreen() {
       />
 
       <ErrorBanner message={error} onRetry={load} />
+
+      {notices.length > 0 ? (
+        <View style={[styles.card, shadow]}>
+          <View style={styles.contactHeader}>
+            <Megaphone size={16} color={colors.primary} strokeWidth={2.2} />
+            <Text style={styles.cardTitle}>School notices</Text>
+          </View>
+          {notices.map((n, i) => (
+            <View key={n.id} style={[styles.noticeItem, i === notices.length - 1 && styles.rowLast]}>
+              <Text style={styles.noticeTitle}>{n.title}</Text>
+              <Text style={styles.noticeBody}>{n.body}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <View style={[styles.card, shadow]}>
+        <View style={styles.contactHeader}>
+          <Phone size={16} color={colors.primary} strokeWidth={2.2} />
+          <Text style={styles.cardTitle}>Contacts</Text>
+        </View>
+        {school ? (
+          <TouchableOpacity
+            style={styles.contactRow}
+            onPress={() => dial(school.phone)}
+            disabled={!school.phone}
+            activeOpacity={0.7}
+          >
+            <View style={styles.contactIcon}>
+              <School size={17} color={colors.primary} strokeWidth={2.2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactName}>{school.name}</Text>
+              <Text style={styles.contactSub}>School office{school.phone ? ` · ${school.phone}` : ''}</Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
+        {Object.entries(conductors).map(([routeId, c]) => (
+          <TouchableOpacity
+            key={routeId}
+            style={styles.contactRow}
+            onPress={() => dial(c.phone)}
+            disabled={!c.phone}
+            activeOpacity={0.7}
+          >
+            <View style={styles.contactIcon}>
+              <Text style={styles.contactInitial}>{(c.name || 'C').charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactName}>{c.name || 'Bus conductor'}</Text>
+              <Text style={styles.contactSub}>
+                Conductor{routes[routeId] ? ` · ${routes[routeId]}` : ''}{c.phone ? ` · ${c.phone}` : ''}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+        {teachers.map((t) => (
+          <TouchableOpacity
+            key={t.id}
+            style={styles.contactRow}
+            onPress={() => dial(t.phone)}
+            disabled={!t.phone}
+            activeOpacity={0.7}
+          >
+            <View style={styles.contactIcon}>
+              <Text style={styles.contactInitial}>{(t.full_name || 'T').charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.contactName}>{t.full_name}</Text>
+              <Text style={styles.contactSub}>Teacher{t.phone ? ` · ${t.phone}` : ''}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+        {!school && Object.keys(conductors).length === 0 && teachers.length === 0 ? (
+          <View style={styles.inlineNote}>
+            <Text style={styles.inlineNoteText}>No contacts available yet.</Text>
+          </View>
+        ) : null}
+      </View>
 
       {children.length === 0 ? (
         <EmptyState
@@ -286,6 +434,29 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginBottom: 6 },
+  contactHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  contactIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contactInitial: { fontSize: 16, fontWeight: '800', color: colors.primary },
+  contactName: { fontSize: 14.5, fontWeight: '700', color: colors.text },
+  contactSub: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+  noticeItem: { paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: colors.border },
+  noticeTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
+  noticeBody: { fontSize: 13, color: colors.textMuted, marginTop: 3, lineHeight: 18 },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   avatar: {
     width: 46,

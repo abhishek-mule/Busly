@@ -7,6 +7,7 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,7 @@ import {
   CircleCheck,
   CalendarClock,
   Bus,
+  Phone,
 } from 'lucide-react-native';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
@@ -56,6 +58,17 @@ interface RouteInfo {
   estimated_time_minutes: number;
 }
 
+interface Rider {
+  id: string;
+  first_name: string;
+  last_name: string;
+  route_id: string | null;
+  father_name: string | null;
+  mother_name: string | null;
+  father_phone: string | null;
+  mother_phone: string | null;
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 
 const fmtTime = (iso: string | null) => {
@@ -81,6 +94,7 @@ export default function HomeScreen() {
   const [busy, setBusy] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [locDenied, setLocDenied] = useState(false);
+  const [riders, setRiders] = useState<Rider[]>([]);
   const locationSub = useRef<Location.LocationSubscription | null>(null);
 
   const selected = trips.find((t) => t.id === selectedId) ?? null;
@@ -126,15 +140,20 @@ export default function HomeScreen() {
     if (!current?.route_id) return;
     (async () => {
       try {
-        const [r, s] = await Promise.all([
+        const [r, s, studentsRes] = await Promise.all([
           api.get<RouteInfo>(`/routes/${current.route_id}`),
           api.get<{ items: Stop[] }>(`/routes/${current.route_id}/stops`),
+          api.get<{ items: Rider[] }>('/students?limit=300'),
         ]);
         if (cancelled) return;
         setRoute(r);
         setStops(s.items ?? []);
+        setRiders((studentsRes.items ?? []).filter((st) => st.route_id === current.route_id));
       } catch {
-        if (!cancelled) setStops([]);
+        if (!cancelled) {
+          setStops([]);
+          setRiders([]);
+        }
       }
     })();
     return () => {
@@ -480,6 +499,50 @@ export default function HomeScreen() {
           ))
         )}
       </View>
+
+      <View style={[styles.card, shadow]}>
+        <View style={styles.cardTop}>
+          <Text style={styles.cardTitle}>Parents on this route</Text>
+          <View style={styles.countPill}>
+            <Users size={12} color={colors.primary} strokeWidth={2.4} />
+            <Text style={styles.countPillText}>{riders.length}</Text>
+          </View>
+        </View>
+        {riders.length === 0 ? (
+          <View style={styles.inlineNote}>
+            <Users size={15} color={colors.textMuted} strokeWidth={2.2} />
+            <Text style={styles.inlineNoteTextMuted}>
+              No students assigned to this route yet.
+            </Text>
+          </View>
+        ) : (
+          riders.map((r, i) => (
+            <View key={r.id} style={[styles.riderItem, i === riders.length - 1 && styles.stopItemLast]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stopName}>
+                  {r.first_name} {r.last_name}
+                </Text>
+                <Text style={styles.stopAddress}>
+                  {[r.father_name, r.mother_name].filter(Boolean).join(' · ') || 'Parent'}
+                </Text>
+              </View>
+              {r.father_phone || r.mother_phone ? (
+                <TouchableOpacity
+                  style={styles.callButton}
+                  onPress={() => {
+                    const phone = r.father_phone || r.mother_phone;
+                    if (phone) Linking.openURL(`tel:${phone}`).catch(() => {});
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Phone size={15} color={colors.white} strokeWidth={2.4} />
+                  <Text style={styles.callButtonText}>Call</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ))
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -543,6 +606,34 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  countPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  countPillText: { fontSize: 11.5, fontWeight: '800', color: colors.primary },
+  riderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  callButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  callButtonText: { color: colors.white, fontSize: 12.5, fontWeight: '700' },
   routeName: { fontSize: 17, fontWeight: '800', color: colors.text, letterSpacing: -0.2 },
   routeMeta: { fontSize: 13, color: colors.textMuted, marginTop: 3, fontWeight: '500' },
   statusPill: { backgroundColor: colors.bg, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },

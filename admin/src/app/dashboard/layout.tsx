@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard, Bus, Users, MapPin, GraduationCap,
-  Map, CreditCard, Settings, Bell, LogOut, ChevronRight,
+  Map, CreditCard, Settings, Bell, LogOut, ChevronRight, Megaphone,
   Activity, TrendingUp, Clock, Search, Moon, Sun, Menu, X,
   FileText, MoreVertical, Gauge, Wifi, WifiOff, CheckCheck
 } from 'lucide-react';
@@ -21,6 +21,7 @@ const navItems = [
   { href: '/dashboard/attendance', icon: Activity, label: 'Attendance', color: '#14b8a6' },
   { href: '/dashboard/map', icon: Map, label: 'Live Map', color: '#ec4899' },
   { href: '/dashboard/reports', icon: FileText, label: 'Reports', color: '#8b5cf6' },
+  { href: '/dashboard/announcements', icon: Megaphone, label: 'Announcements', color: '#f43f5e' },
   { href: '/dashboard/settings', icon: Settings, label: 'Settings', color: '#64748b' },
 ];
 

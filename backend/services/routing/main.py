@@ -148,6 +148,41 @@ async def get_route(route_id: str, tenant_id: str = "default"):
         return dict(row._mapping)
 
 
+@app.get("/routes/{route_id}/conductor")
+async def route_conductor(route_id: str, tenant_id: str = "default"):
+    """Public-to-parents contact card: the conductor assigned to this route.
+
+    Returns only name + phone (no license details) so the parent role can
+    safely call it under the existing /routes gateway scope.
+    """
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        route = (await s.execute(
+            text("SELECT conductor_id FROM routes WHERE id = :id AND tenant_id = :tid"),
+            {"id": route_id, "tid": tenant_id},
+        )).fetchone()
+        if not route or not route[0]:
+            raise HTTPException(status_code=404, detail={"code": "NOT_ASSIGNED", "message": "No conductor assigned to this route yet"})
+        conductor = (await s.execute(
+            text("SELECT id, user_id, phone FROM conductors WHERE id = :id AND tenant_id = :tid"),
+            {"id": str(route[0]), "tid": tenant_id},
+        )).fetchone()
+        if not conductor:
+            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Conductor not found"})
+        cmap = dict(conductor._mapping)
+        name, phone = "", cmap.get("phone") or ""
+        if cmap.get("user_id"):
+            user = (await s.execute(
+                text("SELECT full_name, phone FROM users WHERE id = :id AND tenant_id = :tid"),
+                {"id": str(cmap["user_id"]), "tid": tenant_id},
+            )).fetchone()
+            if user:
+                umap = dict(user._mapping)
+                name = umap.get("full_name") or ""
+                phone = phone or umap.get("phone") or ""
+        return {"id": str(cmap["id"]), "name": name, "phone": phone}
+
+
 @app.put("/routes/{route_id}")
 async def update_route(route_id: str, data: RouteUpdate, tenant_id: str = "default"):
     session = session_factory.get_session(tenant_id)

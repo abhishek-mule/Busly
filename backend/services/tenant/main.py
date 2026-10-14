@@ -2,7 +2,7 @@ import os
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 from prometheus_client import make_asgi_app
 from redis.asyncio import Redis
@@ -78,9 +78,55 @@ class TenantResponse(BaseModel):
     status: str
 
 
+class SchoolProfile(BaseModel):
+    name: str
+    phone: str = ""
+    email: str = ""
+    address: str = ""
+    city: str = ""
+
+
+def _caller_roles(x_user_roles: str = "") -> set[str]:
+    return {r.strip() for r in (x_user_roles or "").split(",") if r.strip()}
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "tenant-service", "version": "1.0.0"}
+
+
+@app.get("/school")
+async def get_school(tenant_id: str = "default"):
+    """School contact card for parent/conductor portals."""
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        row = (await s.execute(text(
+            "SELECT name, phone, email, address, city FROM companies WHERE is_active = true ORDER BY created_at LIMIT 1"
+        ))).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "School profile not set yet"})
+        return {"name": row[0], "phone": row[1], "email": row[2], "address": row[3], "city": row[4]}
+
+
+@app.post("/school")
+async def upsert_school(data: SchoolProfile, tenant_id: str = "default", x_user_roles: str = Header("")):
+    """Create or update the school contact card. Admins only."""
+    if "admin" not in _caller_roles(x_user_roles):
+        raise HTTPException(status_code=403, detail={"code": "FORBIDDEN", "message": "Only admins can update the school profile"})
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        existing = (await s.execute(text("SELECT id FROM companies WHERE is_active = true ORDER BY created_at LIMIT 1"))).fetchone()
+        email = data.email or f"school@{tenant_id}.local"
+        if existing:
+            await s.execute(text("""UPDATE companies SET name = :n, phone = :p, email = :e,
+                address = :a, city = :c, updated_at = NOW() WHERE id = :id"""),
+                {"n": data.name, "p": data.phone, "e": email, "a": data.address, "c": data.city, "id": existing[0]})
+        else:
+            await s.execute(text("""INSERT INTO companies (name, phone, email, address, city)
+                VALUES (:n, :p, :e, :a, :c)"""),
+                {"n": data.name, "p": data.phone, "e": email, "a": data.address, "c": data.city})
+        await s.commit()
+        return await get_school(tenant_id)
 
 
 @app.post("/tenants", response_model=TenantResponse)

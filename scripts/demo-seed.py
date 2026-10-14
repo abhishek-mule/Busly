@@ -136,6 +136,35 @@ def main():
         route_id = d["id"]
         print("== route: created Demo Route ==")
 
+    # --- school contact card (parent/conductor portals) ---
+    s, d = req("POST", "/school", token=admin, body={
+        "name": "Demo Public School", "phone": "+91 22 4567 8900",
+        "email": "office@demoschool.edu", "address": "1 Main Street",
+        "city": "Mumbai",
+    })
+    print(f"== school: profile {'saved' if s == 200 else f'FAILED {s} {d}'} ==")
+
+    # --- conductor personnel linked to the conductor login + route ---
+    conductors = get_items("/conductors?limit=50", admin, "conductors")
+    c_users = get_items("/users?role=conductor", admin, "conductor users")
+    c_user = next((u for u in c_users if u.get("phone") == "+91 98765 43210"), c_users[0] if c_users else None)
+    if c_user:
+        mine = next((c for c in conductors if c.get("user_id") == c_user["id"]), None)
+        if mine is None:
+            s, d = req("POST", "/conductors", token=admin, body={
+                "user_id": c_user["id"], "license_number": "MH-CON-2026-001",
+                "license_type": "HMV", "phone": c_user.get("phone") or "+91 98765 43210",
+            })
+            mine = {"id": d.get("id")} if s == 200 and d.get("id") else None
+            print(f"== conductor: personnel {'linked' if mine else f'FAILED {s} {d}'} ==")
+        else:
+            print("== conductor: personnel reused ==")
+        if mine:
+            req("PUT", f"/routes/{route_id}", token=admin, body={"conductor_id": mine["id"]})
+            print("== route: conductor assigned ==")
+    else:
+        print("== conductor: no conductor user found, skipping link ==")
+
     # --- ensure >= 2 stops on the route ---
     route_stops = sorted(
         [st for st in all_stops if st.get("route_id") == route_id],

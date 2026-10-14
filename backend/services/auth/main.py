@@ -270,6 +270,26 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         return UserResponse(id=str(row[0]), email=row[1], full_name=row[2], phone=row[3], roles=row[4], role=(row[4][0] if row[4] else "admin"), is_active=row[5])
 
 
+@app.get("/users")
+async def list_users(role: str = "", tenant_id: str = "default"):
+    """Staff/parent directory: id + name + phone + roles only.
+
+    Never exposes password hashes. The gateway scopes who may call this
+    (admin, teacher, conductor, parent); the service additionally requires
+    an explicit role filter so nobody can dump the whole user table.
+    """
+    if role not in ("teacher", "conductor", "parent", "admin"):
+        raise HTTPException(status_code=422, detail={"code": "ROLE_REQUIRED", "message": "Query with ?role=teacher|conductor|parent|admin"})
+    session = session_factory.get_session(tenant_id)
+    async for s in session:
+        result = await s.execute(
+            text("SELECT id, full_name, phone, roles FROM users WHERE tenant_id = :tid AND is_active = true AND :role = ANY(roles) ORDER BY full_name"),
+            {"tid": tenant_id, "role": role},
+        )
+        items = [{"id": str(r[0]), "full_name": r[1], "phone": r[2], "roles": r[3]} for r in result.fetchall()]
+        return {"items": items, "total": len(items)}
+
+
 @app.put("/auth/me")
 async def update_me(data: UpdateProfileRequest, current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
