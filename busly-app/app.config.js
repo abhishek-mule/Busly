@@ -50,10 +50,11 @@ module.exports = {
       ],
     ],
     extra: {
-      // Filled in by `npx eas init` (links the app to your expo.dev project).
-      eas: {
-        projectId: process.env.EAS_PROJECT_ID || 'YOUR-EAS-PROJECT-ID',
-      },
+      // Linked by `npx eas init` (project ID is pasted here on first link;
+      // keep the fallback empty so init can detect the unlinked state).
+      ...(process.env.EAS_PROJECT_ID
+        ? { eas: { projectId: process.env.EAS_PROJECT_ID } }
+        : {}),
     },
   },
 };
