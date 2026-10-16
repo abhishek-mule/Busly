@@ -163,3 +163,14 @@ export const maintenanceAPI = {
 };
 
 export default api;
+
+/** Human-readable message for API failures, including FastAPI 422 details. */
+export function apiErrorMessage(err: any, fallback = 'An error occurred'): string {
+  const detail = err?.response?.data?.detail;
+  if (Array.isArray(detail)) {
+    const first = detail.map((d: any) => d?.msg).filter(Boolean)[0];
+    if (first) return `Invalid input: ${first}`;
+  }
+  if (typeof detail === 'string') return detail;
+  return detail?.message ?? err?.response?.data?.message ?? err?.message ?? fallback;
+}

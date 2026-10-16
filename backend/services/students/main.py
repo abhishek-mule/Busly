@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from fastapi import FastAPI, HTTPException
@@ -37,16 +38,16 @@ class StudentCreate(BaseModel):
     class_name: str = ""
     section: str = ""
     gender: str = ""
-    date_of_birth: str = ""
+    date_of_birth: Optional[str] = ""
     blood_group: str = ""
     father_name: str = ""
     father_phone: str = ""
     mother_name: str = ""
     mother_phone: str = ""
     address: str = ""
-    route_id: str = ""
-    pickup_stop_id: str = ""
-    drop_stop_id: str = ""
+    route_id: Optional[str] = ""
+    pickup_stop_id: Optional[str] = ""
+    drop_stop_id: Optional[str] = ""
 
 
 class StudentUpdate(BaseModel):
@@ -55,16 +56,16 @@ class StudentUpdate(BaseModel):
     class_name: str = ""
     section: str = ""
     gender: str = ""
-    date_of_birth: str = ""
+    date_of_birth: Optional[str] = ""
     blood_group: str = ""
     father_name: str = ""
     father_phone: str = ""
     mother_name: str = ""
     mother_phone: str = ""
     address: str = ""
-    route_id: str = ""
-    pickup_stop_id: str = ""
-    drop_stop_id: str = ""
+    route_id: Optional[str] = ""
+    pickup_stop_id: Optional[str] = ""
+    drop_stop_id: Optional[str] = ""
     status: str = ""
 
 

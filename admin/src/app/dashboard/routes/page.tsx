@@ -7,7 +7,7 @@ import { MapPin, Plus, Search, Clock, Navigation, Bus, Map, Eye, Edit, Trash2, P
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { routesAPI } from '@/lib/api';
+import { routesAPI, apiErrorMessage } from '@/lib/api';
 
 const initialForm = {
   name: '',
@@ -154,7 +154,7 @@ export default function RoutesPage() {
       setShowModal(false);
       mutate();
     } catch (err: any) {
-      showToast('error', err.response?.data?.message || 'Something went wrong');
+      showToast('error', apiErrorMessage(err, 'Something went wrong'));
     } finally {
       setSubmitting(false);
     }
@@ -169,7 +169,7 @@ export default function RoutesPage() {
       setDeleteConfirm({ isOpen: false, item: null });
       mutate();
     } catch (err: any) {
-      showToast('error', err.response?.data?.message || 'Failed to delete route');
+      showToast('error', apiErrorMessage(err, 'Failed to delete route'));
     } finally {
       setSubmitting(false);
     }

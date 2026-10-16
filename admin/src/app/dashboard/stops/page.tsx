@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useStops, useRoutes } from '@/hooks/useBusly';
-import { stopsAPI } from '@/lib/api';
+import { stopsAPI, apiErrorMessage } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -113,7 +113,7 @@ export default function StopsPage() {
       setForm(initialForm);
       refetch();
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'An error occurred', 'error');
+      showToast(apiErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }

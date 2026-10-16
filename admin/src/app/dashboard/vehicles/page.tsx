@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useVehicles } from '@/hooks/useBusly';
-import { vehiclesAPI } from '@/lib/api';
+import { vehiclesAPI, apiErrorMessage } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { FormField } from '@/components/ui/FormField';
@@ -109,15 +109,26 @@ export default function VehiclesPage() {
   };
 
   const handleSubmit = async () => {
+    const fail = (message: string) => setToast({ type: 'error', message });
+    if (!form.plate_number.trim()) {
+      fail('Plate number is required.');
+      return;
+    }
+    const capacity = Number(form.seating_capacity);
+    if (form.seating_capacity === '' || !Number.isFinite(capacity) || capacity <= 0) {
+      fail('Seating capacity must be a positive number.');
+      return;
+    }
     setSubmitting(true);
     setToast(null);
     try {
       const payload = {
         ...form,
-        seating_capacity: form.seating_capacity === '' ? null : Number(form.seating_capacity),
-        year: form.year || null,
-        insurance_expiry: form.insurance_expiry ? new Date(form.insurance_expiry).toISOString() : null,
-        permit_expiry: form.permit_expiry ? new Date(form.permit_expiry).toISOString() : null,
+        plate_number: form.plate_number.trim(),
+        seating_capacity: capacity,
+        year: form.year ? Number(form.year) : 0,
+        insurance_expiry: form.insurance_expiry ? new Date(form.insurance_expiry).toISOString() : '',
+        permit_expiry: form.permit_expiry ? new Date(form.permit_expiry).toISOString() : '',
       };
       if (editingVehicle) {
         await vehiclesAPI.update(editingVehicle.id, payload);
@@ -127,7 +138,7 @@ export default function VehiclesPage() {
       await refetch();
       setShowModal(false);
     } catch (err: any) {
-      setToast({ type: 'error', message: err.response?.data?.message || err.message || 'An error occurred' });
+      setToast({ type: 'error', message: apiErrorMessage(err) });
     } finally {
       setSubmitting(false);
     }

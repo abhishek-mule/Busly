@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Optional
 from sqlalchemy import text
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -39,8 +40,8 @@ class RouteCreate(BaseModel):
     direction: str = "pickup"
     morning_pickup_time: str = ""
     evening_drop_time: str = ""
-    vehicle_id: str = ""
-    conductor_id: str = ""
+    vehicle_id: Optional[str] = ""
+    conductor_id: Optional[str] = ""
     base_fare: float = 0
 
 
@@ -52,8 +53,8 @@ class RouteUpdate(BaseModel):
     end_point: str = ""
     direction: str = ""
     status: str = ""
-    vehicle_id: str = ""
-    conductor_id: str = ""
+    vehicle_id: Optional[str] = ""
+    conductor_id: Optional[str] = ""
 
 
 class StopCreate(BaseModel):
@@ -80,8 +81,8 @@ class StopUpdate(BaseModel):
 
 class TripCreate(BaseModel):
     route_id: str
-    vehicle_id: str = ""
-    conductor_id: str = ""
+    vehicle_id: Optional[str] = ""
+    conductor_id: Optional[str] = ""
     trip_type: str = "pickup"
     scheduled_start_time: str = ""
     scheduled_end_time: str = ""

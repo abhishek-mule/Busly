@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useConductors } from '@/hooks/useBusly';
-import { conductorsAPI } from '@/lib/api';
+import { conductorsAPI, apiErrorMessage } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -112,7 +112,7 @@ export default function ConductorsPage() {
       setForm(initialForm);
       refetch();
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'An error occurred', 'error');
+      showToast(apiErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }

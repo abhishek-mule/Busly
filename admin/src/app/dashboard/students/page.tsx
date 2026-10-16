@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useStudents } from '@/hooks/useBusly';
-import { studentsAPI } from '@/lib/api';
+import { studentsAPI, apiErrorMessage } from '@/lib/api';
 import { Modal } from '@/components/ui/Modal';
 import { FormField } from '@/components/ui/FormField';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -107,14 +107,19 @@ export default function StudentsPage() {
   };
 
   const handleSubmit = async () => {
+    if (!form.first_name.trim() || !form.last_name.trim()) {
+      showToast('First and last name are required.', 'error');
+      return;
+    }
+    if (!form.student_id.trim()) {
+      showToast('Student ID is required.', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
+      // Route/stop IDs are UUID strings — keep them as-is (empty stays empty,
+      // the API treats missing links as unassigned).
       const payload: any = { ...form };
-      if (payload.route_id === '') payload.route_id = null;
-      if (payload.pickup_stop_id === '') payload.pickup_stop_id = null;
-      if (payload.route_id) payload.route_id = Number(payload.route_id);
-      if (payload.pickup_stop_id) payload.pickup_stop_id = Number(payload.pickup_stop_id);
-
       if (editingItem) {
         await studentsAPI.update(editingItem.id, payload);
         showToast('Student updated successfully', 'success');
@@ -127,7 +132,7 @@ export default function StudentsPage() {
       setForm(initialForm);
       refetch();
     } catch (err: any) {
-      showToast(err.response?.data?.message || 'An error occurred', 'error');
+      showToast(apiErrorMessage(err), 'error');
     } finally {
       setSubmitting(false);
     }

@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from prometheus_client import make_asgi_app
@@ -34,13 +35,13 @@ class VehicleCreate(BaseModel):
     vehicle_type: str = "bus"
     make: str = ""
     model: str = ""
-    year: int = 0
+    year: Optional[int] = 0
     color: str = ""
     seating_capacity: int
     insurance_number: str = ""
-    insurance_expiry: str = ""
+    insurance_expiry: Optional[str] = ""
     permit_number: str = ""
-    permit_expiry: str = ""
+    permit_expiry: Optional[str] = ""
     gps_device_id: str = ""
 
 
@@ -49,9 +50,9 @@ class VehicleUpdate(BaseModel):
     vehicle_type: str = ""
     make: str = ""
     model: str = ""
-    year: int = 0
+    year: Optional[int] = 0
     color: str = ""
-    seating_capacity: int = 0
+    seating_capacity: Optional[int] = 0
     status: str = ""
     is_available: bool = True
 
@@ -60,7 +61,7 @@ class ConductorCreate(BaseModel):
     user_id: str = ""
     license_number: str
     license_type: str = ""
-    license_expiry: str = ""
+    license_expiry: Optional[str] = ""
     phone: str = ""
     address: str = ""
     city: str = ""
@@ -69,7 +70,7 @@ class ConductorCreate(BaseModel):
 class ConductorUpdate(BaseModel):
     license_number: str = ""
     license_type: str = ""
-    license_expiry: str = ""
+    license_expiry: Optional[str] = ""
     phone: str = ""
     address: str = ""
     city: str = ""
