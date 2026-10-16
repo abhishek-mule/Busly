@@ -299,6 +299,19 @@ Busly/
 
 ---
 
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Backend** (8 microservices + gateway + workers) | Python 3.11 · FastAPI 0.104.1 · Uvicorn · SQLAlchemy 2.0 (async) · asyncpg · Pydantic 2.5 · Celery 5.3 + RabbitMQ · Redis 5 · python-jose/PyJWT (RS256) · passlib/bcrypt · httpx (gateway proxy) · websockets (live GPS) · prometheus-client |
+| **Admin dashboard** | Next.js 14.0.3 · React 18.2 · TypeScript 5.3 · Tailwind CSS 3.3 · Axios · Recharts · Leaflet + react-leaflet (no map key) · lucide-react · date-fns |
+| **Mobile app** (one codebase, 4 roles) | Expo SDK 57 · React 19.2 · React Native 0.86 · React Navigation (tabs + stack) · react-native-maps · expo-location (foreground GPS) · AsyncStorage · react-native-svg · lucide-react-native · expo-linear-gradient |
+| **Data** | PostgreSQL 15 + PostGIS 3.x (one DB per school) · Redis 7 (cache, rate limits, tokens) · RabbitMQ 3 (job queue; Redis broker in all-in-one mode) |
+| **Infra & deploys** | Docker + Compose (12 services locally; 1-container all-in-one for cloud) · Honcho process manager · Cloudflare Tunnel (free public URL) · Neon Postgres (free) · Upstash Redis (free) · Render (free API host) · Vercel (free dashboard host) · EAS Build (free APK) |
+| **Auth & security** | RS256 JWT (OpenSSL keypair) · bcrypt hashing · revocable refresh tokens · per-IP login/register rate limits · gateway-enforced role scopes + tenant isolation |
+
+---
+
 ## 🩺 Troubleshooting
 
 | Symptom | Fix |
